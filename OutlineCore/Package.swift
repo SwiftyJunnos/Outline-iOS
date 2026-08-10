@@ -9,7 +9,7 @@ let package = Package(
         .library(name: "OutlineCore", targets: ["OutlineCore"])
     ],
     targets: [
-        .target(name: "OutlineCore"),
+        .target(name: "OutlineCore", resources: [.process("Resources")]),
         .testTarget(name: "OutlineCoreTests", dependencies: ["OutlineCore"])
     ]
 )

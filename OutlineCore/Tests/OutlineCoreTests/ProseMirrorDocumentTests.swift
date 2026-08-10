@@ -110,3 +110,22 @@ func rendersRichInlineMarksAndMetadata() {
     #expect(rendered.runs.first?.underlineStyle == .single)
     #expect(attachmentDetail(attachment) == "application/pdf · 1 KB")
 }
+
+@Test
+func identifiesMermaidCodeFence() {
+    let node = ProseMirrorNode(
+        type: "code_fence",
+        attrs: ["language": .string("mermaid")],
+        content: [ProseMirrorNode(type: "text", text: "flowchart LR\nA --> B")]
+    )
+
+    #expect(isMermaidCodeBlock(node))
+    #expect(isMermaidCodeBlock(ProseMirrorNode(
+        type: "code_block",
+        attrs: ["language": .string("Mermaid")]
+    )))
+    #expect(!isMermaidCodeBlock(ProseMirrorNode(
+        type: "code_fence",
+        attrs: ["language": .string("swift")]
+    )))
+}

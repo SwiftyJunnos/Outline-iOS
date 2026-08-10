@@ -61,10 +61,14 @@ private struct ProseMirrorBlock: View {
                     Rectangle().fill(.secondary).frame(width: 3)
                 }
         case "code_block", "code_fence":
-            ScrollView(.horizontal) {
-                Text(plainText(node)).font(.body.monospaced()).padding(12)
+            if isMermaidCodeBlock(node) {
+                MermaidDiagramView(source: plainText(node))
+            } else {
+                ScrollView(.horizontal) {
+                    Text(plainText(node)).font(.body.monospaced()).padding(12)
+                }
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
             }
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         case "horizontal_rule", "hr":
             Divider()
         case "hard_break":
@@ -129,6 +133,11 @@ private struct ProseMirrorBlock: View {
         default: .title3.bold()
         }
     }
+}
+
+func isMermaidCodeBlock(_ node: ProseMirrorNode) -> Bool {
+    ["code_block", "code_fence"].contains(node.type)
+        && node.stringAttribute("language")?.lowercased() == "mermaid"
 }
 
 private struct ParagraphBlock: View {
