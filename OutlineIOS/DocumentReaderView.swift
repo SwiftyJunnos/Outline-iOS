@@ -3,6 +3,7 @@ import SwiftUI
 struct DocumentReaderView: View {
     let store: SessionStore
     let documentID: String
+    let documentPath: String
 
     @State private var loadState = LoadState.loading
     @State private var loadRequest = 0
@@ -31,6 +32,15 @@ struct DocumentReaderView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task(id: loadRequest) {
             await loadDocument()
+        }
+        .toolbar {
+            if let webURL = store.webURL(for: documentPath) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Link(destination: webURL) {
+                        Label("Open in Outline", systemImage: "safari")
+                    }
+                }
+            }
         }
     }
 

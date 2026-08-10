@@ -109,6 +109,11 @@ final class SessionStore {
         return try await client.document(id: id)
     }
 
+    func webURL(for documentPath: String) -> URL? {
+        guard case let .connected(serverURL, _) = state else { return nil }
+        return URL(string: documentPath, relativeTo: serverURL)?.absoluteURL
+    }
+
     func disconnect() {
         client = nil
         state = .disconnected

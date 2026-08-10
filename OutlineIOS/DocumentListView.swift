@@ -24,7 +24,11 @@ struct DocumentListView: View {
                     List {
                         OutlineGroup(documents, children: \.outlineChildren) { document in
                             NavigationLink {
-                                DocumentReaderView(store: store, documentID: document.id)
+                                DocumentReaderView(
+                                    store: store,
+                                    documentID: document.id,
+                                    documentPath: document.url
+                                )
                             } label: {
                                 Text(document.title)
                             }
