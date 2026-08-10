@@ -1,4 +1,7 @@
+import OSLog
 import SwiftUI
+
+private let documentListLogger = Logger(subsystem: "house.junnos.outlineios", category: "Documents")
 
 struct DocumentListView: View {
     let store: SessionStore
@@ -63,7 +66,14 @@ struct DocumentListView: View {
         } catch is CancellationError {
             return
         } catch {
-            loadState = .failed(error.localizedDescription)
+            documentListLogger.error(
+                "Unable to load documents for collection \(collection.id, privacy: .private): \(error.localizedDescription, privacy: .public)"
+            )
+            if error as? OutlineClientError == .httpFailure(statusCode: 403) {
+                loadState = .failed("The API key needs collections.documents permission (HTTP 403).")
+            } else {
+                loadState = .failed(error.localizedDescription)
+            }
         }
     }
 

@@ -1,5 +1,8 @@
 import OutlineCore
 import Foundation
+import OSLog
+
+private let networkLogger = Logger(subsystem: "house.junnos.outlineios", category: "Networking")
 
 enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
     case invalidBaseURL
@@ -14,8 +17,15 @@ enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
             "Enter a valid HTTPS server URL."
         case .invalidResponse:
             "The server returned an invalid response."
-        case .httpFailure:
-            "The server rejected the request."
+        case let .httpFailure(statusCode):
+            switch statusCode {
+            case 401:
+                "The API key is invalid or expired (HTTP 401)."
+            case 403:
+                "The API key does not have permission for this action (HTTP 403)."
+            default:
+                "The server rejected the request (HTTP \(statusCode))."
+            }
         case .decodingFailed:
             "The server returned an unexpected response."
         case .requestFailed:
@@ -88,6 +98,7 @@ struct OutlineClient: Sendable {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            networkLogger.error("POST \(path, privacy: .public) transport failed: \(error.localizedDescription, privacy: .public)")
             throw OutlineClientError.requestFailed
         }
 
@@ -95,12 +106,14 @@ struct OutlineClient: Sendable {
             throw OutlineClientError.invalidResponse
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
+            networkLogger.error("POST \(path, privacy: .public) failed with HTTP \(httpResponse.statusCode)")
             throw OutlineClientError.httpFailure(statusCode: httpResponse.statusCode)
         }
 
         do {
             return try JSONDecoder().decode(Response.self, from: data)
         } catch {
+            networkLogger.error("POST \(path, privacy: .public) response decoding failed: \(error.localizedDescription, privacy: .public)")
             throw OutlineClientError.decodingFailed
         }
     }

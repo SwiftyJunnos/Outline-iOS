@@ -245,6 +245,11 @@ struct OutlineClientTests {
             Issue.record("Expected the client to throw for an HTTP failure")
         } catch let error as OutlineClientError {
             #expect(error == .httpFailure(statusCode: 401))
+            #expect(error.localizedDescription == "The API key is invalid or expired (HTTP 401).")
+            #expect(
+                OutlineClientError.httpFailure(statusCode: 403).localizedDescription
+                    == "The API key does not have permission for this action (HTTP 403)."
+            )
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
