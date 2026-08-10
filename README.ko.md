@@ -2,7 +2,7 @@
 
 영문 README는 [README.md](README.md)에서 볼 수 있습니다.
 
-Outline 서버의 iOS 클라이언트입니다. Outline에 저장된 문서를 iPhone과 iPad에서 읽을 수 있습니다.
+Outline 서버를 위한 비공식 iOS 클라이언트입니다. Outline에 저장된 문서를 iPhone과 iPad에서 읽을 수 있습니다.
 
 Outline: <https://www.getoutline.com>
 
@@ -47,6 +47,6 @@ swift test --package-path OutlineCore
 
 ## 라이선스
 
-Business Source License 1.1 — LICENSE 파일을 참고하세요.
+[Apache License 2.0](LICENSE)에 따라 배포됩니다.
 
-Outline은 General Outline, Inc.의 상표입니다.
+이 프로젝트는 General Outline, Inc.와 제휴하거나 보증받지 않은 비공식 프로젝트입니다. Outline은 General Outline, Inc.의 상표입니다.

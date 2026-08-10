@@ -2,7 +2,7 @@
 
 Read this in [한국어](README.ko.md).
 
-An iOS client for Outline servers. Read documents stored in Outline on iPhone and iPad.
+An unofficial iOS client for Outline servers. Read documents stored in Outline on iPhone and iPad.
 
 Outline: <https://www.getoutline.com>
 
@@ -47,7 +47,7 @@ Issues and pull requests are welcome. If you are planning a larger change, pleas
 
 ## License
 
-Business Source License 1.1 — see the [LICENSE](LICENSE) file.
+Licensed under the [Apache License 2.0](LICENSE).
 
-Outline is a trademark of General Outline, Inc.
+This project is not affiliated with or endorsed by General Outline, Inc. Outline is a trademark of General Outline, Inc.
 
