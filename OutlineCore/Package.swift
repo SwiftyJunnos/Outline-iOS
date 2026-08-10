@@ -10,6 +10,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "OutlineCore", resources: [.process("Resources")]),
-        .testTarget(name: "OutlineCoreTests", dependencies: ["OutlineCore"])
+        .testTarget(
+            name: "OutlineCoreTests",
+            dependencies: ["OutlineCore"],
+            resources: [.process("Fixtures")]
+        )
     ]
 )

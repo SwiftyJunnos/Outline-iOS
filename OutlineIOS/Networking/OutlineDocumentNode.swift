@@ -9,4 +9,8 @@ struct OutlineDocumentNode: Decodable, Equatable, Identifiable, Sendable {
     var outlineChildren: [OutlineDocumentNode]? {
         children.isEmpty ? nil : children
     }
+
+    var firstDocumentID: String {
+        children.first?.firstDocumentID ?? id
+    }
 }

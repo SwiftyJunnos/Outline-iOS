@@ -56,11 +56,15 @@ struct DocumentListView: View {
         .task(id: loadRequest) {
             await loadDocuments()
         }
+        .refreshable {
+            await loadDocuments(showLoading: false)
+        }
     }
 
-    private func loadDocuments() async {
-        loadState = .loading
-
+    private func loadDocuments(showLoading: Bool = true) async {
+        if showLoading {
+            loadState = .loading
+        }
         do {
             loadState = .loaded(try await store.documents(in: collection.id))
         } catch is CancellationError {

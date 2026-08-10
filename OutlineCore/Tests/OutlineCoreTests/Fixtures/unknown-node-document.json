@@ -1,0 +1,25 @@
+{
+  "id": "future-document",
+  "title": "Future node fixture",
+  "url": "/doc/future-document",
+  "data": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "future_block",
+        "attrs": {
+          "enabled": true,
+          "metadata": { "version": 2 },
+          "values": ["one", 2, null]
+        },
+        "content": [
+          { "type": "text", "text": "Forward-compatible content" }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [{ "type": "text", "text": "Following block" }]
+      }
+    ]
+  }
+}

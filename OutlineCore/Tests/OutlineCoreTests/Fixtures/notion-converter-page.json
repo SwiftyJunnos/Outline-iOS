@@ -1,0 +1,127 @@
+{
+  "id": "fixture-document",
+  "title": "Imported document fixture",
+  "url": "/doc/fixture-document",
+  "data": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": { "level": 2 },
+        "content": [{ "type": "text", "text": "Rich content", "marks": [] }]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          { "type": "text", "text": "Bold", "marks": [{ "type": "strong" }] },
+          { "type": "text", "text": " and linked", "marks": [{ "type": "link", "attrs": { "href": "https://example.com" } }] }
+        ]
+      },
+      {
+        "type": "bullet_list",
+        "content": [
+          {
+            "type": "list_item",
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "First item" }] }]
+          },
+          {
+            "type": "list_item",
+            "content": [
+              { "type": "paragraph", "content": [{ "type": "text", "text": "Nested item" }] },
+              {
+                "type": "ordered_list",
+                "content": [
+                  {
+                    "type": "list_item",
+                    "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Ordered child" }] }]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "container_notice",
+        "attrs": { "style": "info" },
+        "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Imported callout" }] }]
+      },
+      {
+        "type": "container_toggle",
+        "content": [
+          { "type": "paragraph", "content": [{ "type": "text", "text": "Details" }] },
+          { "type": "paragraph", "content": [{ "type": "text", "text": "Hidden content" }] }
+        ]
+      },
+      {
+        "type": "code_fence",
+        "attrs": { "language": "javascript" },
+        "content": [{ "type": "text", "text": "console.log(\"Hello, world!\");" }]
+      },
+      {
+        "type": "embed",
+        "attrs": { "href": "https://www.youtube.com/watch?v=fixture" }
+      },
+      {
+        "type": "math_block",
+        "content": [{ "type": "text", "text": "E=mc^2" }]
+      },
+      {
+        "type": "attachment",
+        "attrs": {
+          "href": "/api/attachments.redirect?id=fixture-pdf",
+          "title": "specification.pdf",
+          "size": 1024,
+          "contentType": "application/pdf"
+        }
+      },
+      {
+        "type": "video",
+        "attrs": {
+          "src": "https://example.com/demo.mp4",
+          "title": "Demo",
+          "width": 1280,
+          "height": 720
+        }
+      },
+      {
+        "type": "image",
+        "attrs": {
+          "src": "/api/attachments.redirect?id=fixture-image",
+          "alt": "Fixture image",
+          "width": 1200,
+          "height": 800
+        }
+      },
+      {
+        "type": "checkbox_list",
+        "content": [
+          {
+            "type": "checkbox_item",
+            "attrs": { "checked": true },
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Done" }] }]
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tr",
+            "content": [
+              { "type": "th", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Name" }] }] },
+              { "type": "th", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Value" }] }] }
+            ]
+          },
+          {
+            "type": "tr",
+            "content": [
+              { "type": "td", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Status" }] }] },
+              { "type": "td", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Ready" }] }] }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

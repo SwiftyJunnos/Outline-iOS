@@ -80,6 +80,52 @@ func resolvesOnlySafeReaderLinks() {
 }
 
 @Test
+func matchesOutlineHeadingAnchorsAndDuplicateSuffixes() {
+    let heading = ProseMirrorNode(
+        type: "heading",
+        attrs: ["level": .number(2)],
+        content: [ProseMirrorNode(type: "text", text: "Résumé & Next Steps")]
+    )
+    let nestedHeading = ProseMirrorNode(
+        type: "heading",
+        content: [ProseMirrorNode(type: "text", text: "Nested Heading")]
+    )
+    let compatibilityHeadings = [
+        "What’s New",
+        "“Quoted”",
+        "• Notes…",
+        "Примечания",
+        "구현 환경",
+    ].map {
+        ProseMirrorNode(
+            type: "heading",
+            content: [ProseMirrorNode(type: "text", text: $0)]
+        )
+    }
+    let document = ProseMirrorNode(type: "doc", content: [
+        heading,
+        heading,
+        ProseMirrorNode(
+            type: "heading",
+            content: [ProseMirrorNode(type: "text", text: "Hello_world")]
+        ),
+        ProseMirrorNode(type: "container_notice", content: [nestedHeading]),
+    ] + compatibilityHeadings)
+
+    let anchors = outlineHeadingAnchors(in: document)
+
+    #expect(anchors[[0]] == "h-resume-and-next-steps")
+    #expect(anchors[[1]] == "h-resume-and-next-steps-1")
+    #expect(anchors[[2]] == "h-helloworld")
+    #expect(anchors[[3, 0]] == "h-nested-heading")
+    #expect(anchors[[4]] == "h-whats-new")
+    #expect(anchors[[5]] == "h-quoted")
+    #expect(anchors[[6]] == "h-notes")
+    #expect(anchors[[7]] == "h-primechaniya")
+    #expect(anchors[[8]] == "h-구현-환경")
+}
+
+@Test
 func rendersRichInlineMarksAndMetadata() {
     let node = ProseMirrorNode(
         type: "paragraph",
@@ -91,6 +137,7 @@ func rendersRichInlineMarksAndMetadata() {
                     ProseMirrorMark(type: "highlight", attrs: ["color": .string("#FDEA9B")]),
                     ProseMirrorMark(type: "comment", attrs: ["resolved": .bool(false)]),
                     ProseMirrorMark(type: "placeholder"),
+                    ProseMirrorMark(type: "code_inline"),
                 ]
             ),
             ProseMirrorNode(type: "math_inline", content: [ProseMirrorNode(type: "text", text: "x^2")]),
@@ -108,6 +155,7 @@ func rendersRichInlineMarksAndMetadata() {
     #expect(String(rendered.characters) == "Review$x^2$")
     #expect(rendered.runs.first?.backgroundColor != nil)
     #expect(rendered.runs.first?.underlineStyle == .single)
+    #expect(rendered.runs.first?.inlinePresentationIntent?.contains(.code) == true)
     #expect(attachmentDetail(attachment) == "application/pdf · 1 KB")
 }
 
@@ -128,4 +176,97 @@ func identifiesMermaidCodeFence() {
         type: "code_fence",
         attrs: ["language": .string("swift")]
     )))
+}
+
+@Test
+func highlightsKnownCodeLanguagesAndFallsBackForUnknownOnes() {
+    let source = #"let answer = 42 // result"#
+    let highlighted = highlightedCode(source, language: "swift")
+    let plain = highlightedCode(source, language: "plaintext")
+
+    #expect(normalizedCodeLanguage("TSX") == "typescript")
+    #expect(highlighted.runs.contains { $0.foregroundColor != nil })
+    #expect(!plain.runs.contains { $0.foregroundColor != nil })
+}
+
+@Test
+func sanitizesDownloadedAttachmentFilenames() {
+    #expect(safeAttachmentFilename("../../report", fallbackExtension: "pdf") == "report.pdf")
+    #expect(safeAttachmentFilename("video.mp4", fallbackExtension: "mov") == "video.mp4")
+    #expect(safeAttachmentFilename("", fallbackExtension: "bin") == "Attachment.bin")
+}
+
+@Test
+func decodesProductionShapedFixtureCorpus() throws {
+    // Shapes adapted from Outline's NotionConverter snapshot:
+    // plugins/notion/server/utils/__snapshots__/NotionConverter.test.ts.snap
+    let url = try #require(Bundle.module.url(
+        forResource: "notion-converter-page",
+        withExtension: "json"
+    ))
+    let document = try JSONDecoder().decode(
+        OutlineRichDocument.self,
+        from: Data(contentsOf: url)
+    )
+    let types = Set(allNodeTypes(in: document.data))
+
+    #expect(document.id == "fixture-document")
+    #expect([
+        "attachment", "bullet_list", "checkbox_list", "code_fence",
+        "container_notice", "container_toggle", "embed", "image",
+        "math_block", "table", "video",
+    ].allSatisfy(types.contains))
+}
+
+@Test
+func preservesUnknownNodeFixtureWithoutDroppingFollowingContent() throws {
+    let url = try #require(Bundle.module.url(
+        forResource: "unknown-node-document",
+        withExtension: "json"
+    ))
+    let document = try JSONDecoder().decode(
+        OutlineRichDocument.self,
+        from: Data(contentsOf: url)
+    )
+
+    let unknown = try #require(document.data.content.first)
+    #expect(unknown.type == "future_block")
+    #expect(unknown.attrs["enabled"] == .bool(true))
+    #expect(unknown.attrs["metadata"] == .object(["version": .number(2)]))
+    #expect(unknown.attrs["values"] == .array([.string("one"), .number(2), .null]))
+    #expect(unknown.content.first?.text == "Forward-compatible content")
+    #expect(document.data.content.last?.content.first?.text == "Following block")
+}
+
+@Test
+func decodesLongMixedDocumentWithoutLosingBlocks() throws {
+    let blocks: [[String: Any]] = (0..<1_500).map { index in
+        if index.isMultiple(of: 3) {
+            return [
+                "type": "code_fence",
+                "attrs": ["language": "swift"],
+                "content": [["type": "text", "text": "let value = \(index)"]],
+            ]
+        }
+        return [
+            "type": index.isMultiple(of: 2) ? "heading" : "paragraph",
+            "attrs": ["level": 2],
+            "content": [["type": "text", "text": "Block \(index)"]],
+        ]
+    }
+    let data = try JSONSerialization.data(withJSONObject: [
+        "id": "long-document",
+        "title": "Long document",
+        "url": "/doc/long-document",
+        "data": ["type": "doc", "content": blocks],
+    ])
+
+    let document = try JSONDecoder().decode(OutlineRichDocument.self, from: data)
+
+    #expect(document.data.content.count == 1_500)
+    #expect(document.data.content[1_499].content.first?.text == "Block 1499")
+}
+
+private func allNodeTypes(in node: ProseMirrorNode) -> [String] {
+    [node.type] + node.content.flatMap(allNodeTypes)
 }

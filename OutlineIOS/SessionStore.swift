@@ -47,9 +47,15 @@ final class SessionStore {
 
         do {
             let client = try OutlineClient(baseURL: credentials.serverURL, token: credentials.token)
-            let collections = try await client.listCollections()
+            let collections = try await client.validateReaderAccess()
             self.client = client
             state = .connected(serverURL: credentials.serverURL, collections: collections)
+        } catch is CancellationError {
+            state = .disconnected
+            return
+        } catch let error as OutlineClientError {
+            state = .disconnected
+            errorMessage = error.localizedDescription
         } catch {
             state = .disconnected
             errorMessage = "Unable to verify the saved connection. Check your network, or enter the server URL and API key to reconnect."
@@ -77,7 +83,10 @@ final class SessionStore {
         let collections: [OutlineCollection]
         do {
             client = try OutlineClient(baseURL: url, token: trimmedToken)
-            collections = try await client.listCollections()
+            collections = try await client.validateReaderAccess()
+        } catch is CancellationError {
+            state = .disconnected
+            return
         } catch let error as OutlineClientError {
             state = .disconnected
             errorMessage = error.localizedDescription
@@ -98,12 +107,38 @@ final class SessionStore {
         }
     }
 
+    func refreshCollections() async {
+        guard
+            case let .connected(serverURL, _) = state,
+            let client
+        else {
+            return
+        }
+
+        do {
+            state = .connected(serverURL: serverURL, collections: try await client.listCollections())
+            errorMessage = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func documents(in collectionID: String) async throws -> [OutlineDocumentNode] {
         guard let client else {
             throw OutlineClientError.requestFailed
         }
 
         return try await client.listDocuments(collectionID: collectionID)
+    }
+
+    func searchDocuments(query: String) async throws -> [OutlineSearchResult] {
+        guard let client else {
+            throw OutlineClientError.requestFailed
+        }
+
+        return try await client.searchDocuments(query: query)
     }
 
     func document(id: String) async throws -> OutlineRichDocument {

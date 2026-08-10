@@ -22,6 +22,9 @@ struct ConnectionView: View {
             }
         }
         .navigationTitle("Outline")
+        .refreshable {
+            await store.refreshCollections()
+        }
     }
 
     @ViewBuilder
@@ -48,7 +51,7 @@ struct ConnectionView: View {
                     .accessibilityLabel("API key")
             }
 
-            Text("Required permissions: collections.list, collections.documents, documents.info, attachments.redirect.")
+            Text("Connection checks collection, search, and available document access. Protected images also require attachments.redirect.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -79,6 +82,14 @@ struct ConnectionView: View {
                 Text(serverURL.absoluteString)
                     .multilineTextAlignment(.trailing)
                     .textSelection(.enabled)
+            }
+        }
+
+        Section {
+            NavigationLink {
+                DocumentSearchView(store: store)
+            } label: {
+                Label("Search documents", systemImage: "magnifyingglass")
             }
         }
 
@@ -125,5 +136,88 @@ struct ConnectionView: View {
                 focusedField = nil
             }
         }
+    }
+}
+
+private struct DocumentSearchView: View {
+    let store: SessionStore
+
+    @State private var query = ""
+    @State private var submittedQuery = ""
+    @State private var request = 0
+    @State private var state = SearchState.idle
+
+    var body: some View {
+        Group {
+            switch state {
+            case .idle:
+                ContentUnavailableView(
+                    "Search documents",
+                    systemImage: "magnifyingglass",
+                    description: Text("Enter a title or phrase.")
+                )
+            case .loading:
+                ProgressView("Searching…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case let .loaded(results):
+                if results.isEmpty {
+                    ContentUnavailableView.search(text: submittedQuery)
+                } else {
+                    List(results) { result in
+                        NavigationLink {
+                            DocumentReaderView(
+                                store: store,
+                                documentID: result.id,
+                                documentPath: result.url
+                            )
+                        } label: {
+                            Text(result.title)
+                        }
+                    }
+                }
+            case let .failed(message):
+                ContentUnavailableView {
+                    Label("Unable to search documents", systemImage: "exclamationmark.circle")
+                } description: {
+                    Text(message)
+                } actions: {
+                    Button("Try again") { request += 1 }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .navigationTitle("Search")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, prompt: "Search documents")
+        .onSubmit(of: .search, submit)
+        .task(id: request) {
+            guard !submittedQuery.isEmpty else { return }
+            state = .loading
+            do {
+                state = .loaded(try await store.searchDocuments(query: submittedQuery))
+            } catch is CancellationError {
+                return
+            } catch {
+                state = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func submit() {
+        request += 1
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            submittedQuery = ""
+            state = .idle
+            return
+        }
+        submittedQuery = trimmedQuery
+    }
+
+    private enum SearchState {
+        case idle
+        case loading
+        case loaded([OutlineSearchResult])
+        case failed(String)
     }
 }

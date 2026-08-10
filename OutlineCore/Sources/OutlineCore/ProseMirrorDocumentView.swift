@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import QuickLook
 
 #if canImport(UIKit)
 import UIKit
@@ -29,7 +30,13 @@ public struct ProseMirrorDocumentView: View {
     }
 
     public var body: some View {
-        ProseMirrorBlock(node: document.data, baseURL: baseURL, assetLoader: assetLoader)
+        ProseMirrorBlock(
+            node: document.data,
+            baseURL: baseURL,
+            assetLoader: assetLoader,
+            headingAnchors: outlineHeadingAnchors(in: document.data),
+            nodePath: []
+        )
     }
 }
 
@@ -37,6 +44,8 @@ private struct ProseMirrorBlock: View {
     let node: ProseMirrorNode
     let baseURL: URL?
     let assetLoader: ProseMirrorAssetLoader?
+    let headingAnchors: [[Int]: String]
+    let nodePath: [Int]
 
     var body: some View {
         switch node.type {
@@ -45,9 +54,7 @@ private struct ProseMirrorBlock: View {
         case "paragraph":
             ParagraphBlock(node: node, baseURL: baseURL, assetLoader: assetLoader)
         case "heading":
-            Text(inlineText(node, baseURL: baseURL))
-                .font(headingFont)
-                .accessibilityAddTraits(.isHeader)
+            heading
         case "bullet_list", "checkbox_list":
             list(ordered: false)
         case "ordered_list":
@@ -64,27 +71,56 @@ private struct ProseMirrorBlock: View {
             if isMermaidCodeBlock(node) {
                 MermaidDiagramView(source: plainText(node))
             } else {
-                ScrollView(.horizontal) {
-                    Text(plainText(node)).font(.body.monospaced()).padding(12)
-                }
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                CodeBlockView(node: node)
             }
         case "horizontal_rule", "hr":
             Divider()
         case "hard_break":
             Text("\n")
         case "table":
-            TableBlock(node: node, baseURL: baseURL, assetLoader: assetLoader)
+            TableBlock(
+                node: node,
+                baseURL: baseURL,
+                assetLoader: assetLoader,
+                headingAnchors: headingAnchors,
+                nodePath: nodePath
+            )
         case "container_notice":
-            NoticeBlock(node: node, baseURL: baseURL, assetLoader: assetLoader)
+            NoticeBlock(
+                node: node,
+                baseURL: baseURL,
+                assetLoader: assetLoader,
+                headingAnchors: headingAnchors,
+                nodePath: nodePath
+            )
         case "container_toggle":
-            ToggleBlock(node: node, baseURL: baseURL, assetLoader: assetLoader)
+            ToggleBlock(
+                node: node,
+                baseURL: baseURL,
+                assetLoader: assetLoader,
+                headingAnchors: headingAnchors,
+                nodePath: nodePath
+            )
         case "attachment":
-            AttachmentBlock(node: node, baseURL: baseURL)
-        case "embed":
-            LinkedMediaBlock(node: node, sourceKey: "href", icon: "link", baseURL: baseURL)
+            DownloadableMediaBlock(
+                node: node,
+                sourceKey: "href",
+                icon: "paperclip",
+                fallbackTitle: "Attachment",
+                baseURL: baseURL,
+                assetLoader: assetLoader
+            )
+        case "embed", "bookmark", "link_preview":
+            LinkedMediaBlock(node: node, sourceKey: "href", icon: "bookmark", baseURL: baseURL)
         case "video":
-            LinkedMediaBlock(node: node, sourceKey: "src", icon: "play.rectangle", baseURL: baseURL)
+            DownloadableMediaBlock(
+                node: node,
+                sourceKey: "src",
+                icon: "play.rectangle",
+                fallbackTitle: "Video",
+                baseURL: baseURL,
+                assetLoader: assetLoader
+            )
         case "math_block":
             MathBlock(node: node)
         case "image":
@@ -98,9 +134,15 @@ private struct ProseMirrorBlock: View {
 
     @ViewBuilder
     private func blocks(_ nodes: [ProseMirrorNode]) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(nodes.enumerated()), id: \.offset) { _, child in
-                ProseMirrorBlock(node: child, baseURL: baseURL, assetLoader: assetLoader)
+        LazyVStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(nodes.enumerated()), id: \.offset) { index, child in
+                anchoredBlock(
+                    node: child,
+                    baseURL: baseURL,
+                    assetLoader: assetLoader,
+                    headingAnchors: headingAnchors,
+                    nodePath: nodePath + [index]
+                )
             }
         }
     }
@@ -113,7 +155,13 @@ private struct ProseMirrorBlock: View {
                     Text(marker(for: item, index: index, ordered: ordered))
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
-                    ProseMirrorBlock(node: item, baseURL: baseURL, assetLoader: assetLoader)
+                    anchoredBlock(
+                        node: item,
+                        baseURL: baseURL,
+                        assetLoader: assetLoader,
+                        headingAnchors: headingAnchors,
+                        nodePath: nodePath + [index]
+                    )
                 }
             }
         }
@@ -126,6 +174,12 @@ private struct ProseMirrorBlock: View {
         return ordered ? "\((node.intAttribute("order") ?? 1) + index)." : "•"
     }
 
+    private var heading: some View {
+        Text(inlineText(node, baseURL: baseURL))
+            .font(headingFont)
+            .accessibilityAddTraits(.isHeader)
+    }
+
     private var headingFont: Font {
         switch node.intAttribute("level") ?? 1 {
         case 1: .title.bold()
@@ -135,9 +189,164 @@ private struct ProseMirrorBlock: View {
     }
 }
 
+@ViewBuilder
+private func anchoredBlock(
+    node: ProseMirrorNode,
+    baseURL: URL?,
+    assetLoader: ProseMirrorAssetLoader?,
+    headingAnchors: [[Int]: String],
+    nodePath: [Int]
+) -> some View {
+    if let anchor = headingAnchors[nodePath] {
+        ProseMirrorBlock(
+            node: node,
+            baseURL: baseURL,
+            assetLoader: assetLoader,
+            headingAnchors: headingAnchors,
+            nodePath: nodePath
+        )
+        .id(anchor)
+    } else {
+        ProseMirrorBlock(
+            node: node,
+            baseURL: baseURL,
+            assetLoader: assetLoader,
+            headingAnchors: headingAnchors,
+            nodePath: nodePath
+        )
+    }
+}
+
 func isMermaidCodeBlock(_ node: ProseMirrorNode) -> Bool {
     ["code_block", "code_fence"].contains(node.type)
         && node.stringAttribute("language")?.lowercased() == "mermaid"
+}
+
+func outlineHeadingAnchors(in root: ProseMirrorNode) -> [[Int]: String] {
+    var anchors: [[Int]: String] = [:]
+    var seen: [String: Int] = [:]
+
+    func visit(_ node: ProseMirrorNode, path: [Int]) {
+        if node.type == "heading" {
+            let base = outlineHeadingAnchor(plainText(node))
+            let duplicateIndex = seen[base, default: 0]
+            anchors[path] = duplicateIndex == 0 ? base : "\(base)-\(duplicateIndex)"
+            seen[base] = duplicateIndex + 1
+        }
+        for (index, child) in node.content.enumerated() {
+            visit(child, path: path + [index])
+        }
+    }
+
+    visit(root, path: [])
+    return anchors
+}
+
+private let outlineSlugCharacterMap: [String: String] = {
+    let url = Bundle.module.url(
+        forResource: "slugify-1.6.9-charmap",
+        withExtension: "json"
+    )!
+    return try! JSONDecoder().decode(
+        [String: String].self,
+        from: Data(contentsOf: url)
+    )
+}()
+
+private let outlineSlugRemovableCharacters = CharacterSet(
+    charactersIn: "!\"#$%&'.()*+,/:;<=>?@[\\]^_`{|}~"
+)
+
+private func outlineHeadingAnchor(_ text: String) -> String {
+    var slug = ""
+    for character in text.precomposedStringWithCanonicalMapping {
+        let mapped = outlineSlugCharacterMap[String(character)] ?? String(character)
+        slug += mapped == "-" ? " " : mapped
+    }
+
+    var sanitized = ""
+    for scalar in slug.unicodeScalars
+        where !outlineSlugRemovableCharacters.contains(scalar) {
+        sanitized.unicodeScalars.append(scalar)
+    }
+
+    return "h-" + sanitized
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .split(whereSeparator: \.isWhitespace)
+        .joined(separator: "-")
+        .lowercased()
+}
+
+private struct CodeBlockView: View {
+    let node: ProseMirrorNode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let language = normalizedCodeLanguage(node.stringAttribute("language")) {
+                Text(language.uppercased())
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+            }
+            ScrollView(.horizontal) {
+                Text(highlightedCode(plainText(node), language: node.stringAttribute("language")))
+                    .font(.body.monospaced())
+                    .padding(12)
+            }
+        }
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+func normalizedCodeLanguage(_ language: String?) -> String? {
+    guard let language = language?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+          !language.isEmpty else { return nil }
+    switch language {
+    case "js", "jsx": return "javascript"
+    case "ts", "tsx": return "typescript"
+    case "py": return "python"
+    case "sh", "zsh", "bash": return "shell"
+    default: return language
+    }
+}
+
+func highlightedCode(_ source: String, language: String?) -> AttributedString {
+    var output = AttributedString(source)
+    guard let language = normalizedCodeLanguage(language),
+          let keywords = codeKeywords[language] else { return output }
+
+    if !keywords.isEmpty {
+        applyCodeStyle(#"\b(?:\#(keywords.sorted().joined(separator: "|")))\b"#, color: .blue, source: source, output: &output)
+    }
+    applyCodeStyle(#"\b\d+(?:\.\d+)?\b"#, color: .purple, source: source, output: &output)
+    applyCodeStyle(#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'"#, color: .red, source: source, output: &output)
+    let commentPattern = ["python", "shell", "yaml"].contains(language) ? #"(?m)#.*$"# : #"(?m)//.*$"#
+    applyCodeStyle(commentPattern, color: .green, source: source, output: &output)
+    return output
+}
+
+private let codeKeywords: [String: Set<String>] = [
+    "swift": ["actor", "class", "else", "enum", "extension", "func", "guard", "if", "import", "let", "protocol", "return", "struct", "switch", "var"],
+    "javascript": ["async", "await", "class", "const", "else", "export", "function", "if", "import", "let", "return", "var"],
+    "typescript": ["async", "await", "class", "const", "else", "enum", "export", "function", "if", "import", "interface", "return", "type", "let"],
+    "python": ["async", "await", "class", "def", "elif", "else", "for", "from", "if", "import", "in", "return", "while"],
+    "shell": ["case", "do", "done", "elif", "else", "esac", "fi", "for", "function", "if", "in", "then", "while"],
+    "json": [],
+    "yaml": ["false", "null", "true"],
+]
+
+private func applyCodeStyle(
+    _ pattern: String,
+    color: Color,
+    source: String,
+    output: inout AttributedString
+) {
+    guard let expression = try? NSRegularExpression(pattern: pattern) else { return }
+    for match in expression.matches(in: source, range: NSRange(source.startIndex..., in: source)) {
+        guard let sourceRange = Range(match.range, in: source),
+              let lowerBound = AttributedString.Index(sourceRange.lowerBound, within: output),
+              let upperBound = AttributedString.Index(sourceRange.upperBound, within: output) else { continue }
+        output[lowerBound..<upperBound].foregroundColor = color
+    }
 }
 
 private struct ParagraphBlock: View {
@@ -180,14 +389,16 @@ private struct TableBlock: View {
     let node: ProseMirrorNode
     let baseURL: URL?
     let assetLoader: ProseMirrorAssetLoader?
+    let headingAnchors: [[Int]: String]
+    let nodePath: [Int]
 
     var body: some View {
         ScrollView(.horizontal) {
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                ForEach(Array(node.content.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(node.content.enumerated()), id: \.offset) { rowIndex, row in
                     GridRow {
-                        ForEach(Array(row.content.enumerated()), id: \.offset) { _, cell in
-                            cellView(cell)
+                        ForEach(Array(row.content.enumerated()), id: \.offset) { cellIndex, cell in
+                            cellView(cell, rowIndex: rowIndex, cellIndex: cellIndex)
                                 .gridCellColumns(max(1, cell.intAttribute("colspan") ?? 1))
                         }
                     }
@@ -199,8 +410,14 @@ private struct TableBlock: View {
         .accessibilityLabel("Table")
     }
 
-    private func cellView(_ cell: ProseMirrorNode) -> some View {
-        ProseMirrorBlock(node: cell, baseURL: baseURL, assetLoader: assetLoader)
+    private func cellView(_ cell: ProseMirrorNode, rowIndex: Int, cellIndex: Int) -> some View {
+        anchoredBlock(
+            node: cell,
+            baseURL: baseURL,
+            assetLoader: assetLoader,
+            headingAnchors: headingAnchors,
+            nodePath: nodePath + [rowIndex, cellIndex]
+        )
             .font(cell.type == "th" ? .body.bold() : .body)
             .frame(minWidth: 120, maxWidth: 280, alignment: alignment(cell))
             .padding(10)
@@ -222,15 +439,23 @@ private struct NoticeBlock: View {
     let node: ProseMirrorNode
     let baseURL: URL?
     let assetLoader: ProseMirrorAssetLoader?
+    let headingAnchors: [[Int]: String]
+    let nodePath: [Int]
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: icon).accessibilityHidden(true)
-            ProseMirrorBlock(
-                node: ProseMirrorNode(type: "doc", content: node.content),
-                baseURL: baseURL,
-                assetLoader: assetLoader
-            )
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(node.content.enumerated()), id: \.offset) { index, child in
+                    anchoredBlock(
+                        node: child,
+                        baseURL: baseURL,
+                        assetLoader: assetLoader,
+                        headingAnchors: headingAnchors,
+                        nodePath: nodePath + [index]
+                    )
+                }
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -262,15 +487,23 @@ private struct ToggleBlock: View {
     let node: ProseMirrorNode
     let baseURL: URL?
     let assetLoader: ProseMirrorAssetLoader?
+    let headingAnchors: [[Int]: String]
+    let nodePath: [Int]
     @State private var expanded = false
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            ProseMirrorBlock(
-                node: ProseMirrorNode(type: "doc", content: Array(node.content.dropFirst())),
-                baseURL: baseURL,
-                assetLoader: assetLoader
-            )
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(node.content.dropFirst().enumerated()), id: \.offset) { index, child in
+                    anchoredBlock(
+                        node: child,
+                        baseURL: baseURL,
+                        assetLoader: assetLoader,
+                        headingAnchors: headingAnchors,
+                        nodePath: nodePath + [index + 1]
+                    )
+                }
+            }
             .padding(.top, 8)
         } label: {
             Text(node.content.first.map { inlineText($0, baseURL: baseURL) } ?? AttributedString("Details"))
@@ -279,36 +512,132 @@ private struct ToggleBlock: View {
     }
 }
 
-private struct AttachmentBlock: View {
+private struct DownloadableMediaBlock: View {
     let node: ProseMirrorNode
+    let sourceKey: String
+    let icon: String
+    let fallbackTitle: String
     let baseURL: URL?
+    let assetLoader: ProseMirrorAssetLoader?
+
+    @State private var previewURL: URL?
+    @State private var errorMessage: String?
+    @State private var request = 0
+    @State private var isLoading = false
 
     var body: some View {
-        Group {
-            if let url = resolvedSafeURL(node.stringAttribute("href"), baseURL: baseURL) {
-                Link(destination: url) { label }
-            } else {
-                label
+        VStack(alignment: .leading, spacing: 6) {
+            Group {
+                if assetLoader != nil, source != nil {
+                    Button {
+                        request += 1
+                    } label: {
+                        card
+                    }
+                    .disabled(isLoading)
+                } else if let url = resolvedSafeURL(source, baseURL: baseURL) {
+                    Link(destination: url) { card }
+                } else {
+                    card
+                }
+            }
+            .buttonStyle(.plain)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
-        .buttonStyle(.plain)
+        .quickLookPreview($previewURL)
+        .task(id: request) {
+            guard request > 0 else { return }
+            await downloadAndOpen()
+        }
+        .onDisappear {
+            removePreviewFile()
+        }
     }
 
-    private var label: some View {
+    private var source: String? {
+        let source = node.stringAttribute(sourceKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return source?.isEmpty == false ? source : nil
+    }
+
+    private var title: String {
+        let title = node.stringAttribute("title")?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title?.isEmpty == false ? title! : fallbackTitle
+    }
+
+    private var card: some View {
         HStack(spacing: 10) {
-            Image(systemName: "paperclip").accessibilityHidden(true)
+            Image(systemName: icon).font(.title3).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(node.stringAttribute("title") ?? "Attachment").lineLimit(2)
-                if let detail = attachmentDetail(node) {
-                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                Text(title).font(.headline).lineLimit(2)
+                if let detail {
+                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 8)
-            Image(systemName: "arrow.down.circle").accessibilityHidden(true)
+            if isLoading {
+                ProgressView().controlSize(.small)
+            } else {
+                Image(systemName: assetLoader == nil ? "arrow.up.right" : "arrow.down.circle")
+                    .accessibilityHidden(true)
+            }
         }
         .padding(12)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
+    }
+
+    private var detail: String? {
+        if node.type == "attachment" {
+            return attachmentDetail(node)
+        }
+        guard let url = resolvedSafeURL(source, baseURL: baseURL) else { return "Link unavailable" }
+        return url.host ?? url.absoluteString
+    }
+
+    @MainActor
+    private func downloadAndOpen() async {
+        guard let source, let assetLoader else { return }
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        var temporaryURL: URL?
+        do {
+            let data = try await assetLoader(source)
+            try Task.checkCancellation()
+            let filename = safeAttachmentFilename(
+                title,
+                fallbackExtension: URL(string: source, relativeTo: baseURL)?.pathExtension
+            )
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(UUID().uuidString)-\(filename)")
+            try data.write(to: url, options: .atomic)
+            temporaryURL = url
+            try Task.checkCancellation()
+            removePreviewFile()
+            previewURL = url
+            temporaryURL = nil
+        } catch is CancellationError {
+            if let temporaryURL {
+                try? FileManager.default.removeItem(at: temporaryURL)
+            }
+        } catch {
+            if let temporaryURL {
+                try? FileManager.default.removeItem(at: temporaryURL)
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+    @MainActor
+    private func removePreviewFile() {
+        guard let previewURL else { return }
+        try? FileManager.default.removeItem(at: previewURL)
+        self.previewURL = nil
     }
 }
 
@@ -487,7 +816,7 @@ func inlineText(_ parent: ProseMirrorNode, baseURL: URL? = nil) -> AttributedStr
                 run.inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(.stronglyEmphasized)
             case "em":
                 run.inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(.emphasized)
-            case "code":
+            case "code", "code_inline":
                 run.inlinePresentationIntent = (run.inlinePresentationIntent ?? []).union(.code)
             case "link":
                 if let url = resolvedSafeURL(mark.stringAttribute("href"), baseURL: baseURL) { run.link = url }
@@ -552,6 +881,23 @@ func attachmentDetail(_ node: ProseMirrorNode) -> String? {
         parts.append(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
     }
     return parts.isEmpty ? nil : parts.joined(separator: " · ")
+}
+
+func safeAttachmentFilename(_ title: String, fallbackExtension: String? = nil) -> String {
+    let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+    let lastPathComponent = trimmedTitle.isEmpty ? "" : URL(fileURLWithPath: trimmedTitle).lastPathComponent
+        .components(separatedBy: .controlCharacters)
+        .joined()
+        .replacingOccurrences(of: ":", with: "-")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    var filename = lastPathComponent.isEmpty ? "Attachment" : String(lastPathComponent.prefix(100))
+    if URL(fileURLWithPath: filename).pathExtension.isEmpty,
+       let fallbackExtension,
+       !fallbackExtension.isEmpty,
+       fallbackExtension.unicodeScalars.allSatisfy(CharacterSet.alphanumerics.contains) {
+        filename += ".\(fallbackExtension.prefix(12))"
+    }
+    return filename
 }
 
 private func mentionURL(_ node: ProseMirrorNode, baseURL: URL?) -> URL? {

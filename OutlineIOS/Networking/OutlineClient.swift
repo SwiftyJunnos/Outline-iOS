@@ -4,6 +4,29 @@ import OSLog
 
 private let networkLogger = Logger(subsystem: "house.junnos.outlineios", category: "Networking")
 
+struct OutlineSearchResult: Decodable, Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let url: String
+
+    private enum CodingKeys: CodingKey {
+        case document
+    }
+
+    private struct Document: Decodable {
+        let id: String
+        let title: String
+        let url: String
+    }
+
+    init(from decoder: Decoder) throws {
+        let document = try decoder.container(keyedBy: CodingKeys.self).decode(Document.self, forKey: .document)
+        id = document.id
+        title = document.title
+        url = document.url
+    }
+}
+
 enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
     case invalidBaseURL
     case invalidAssetURL
@@ -56,11 +79,52 @@ struct OutlineClient: Sendable {
     }
 
     func listCollections() async throws -> [OutlineCollection] {
-        let response: CollectionsResponse = try await post(
-            "collections.list",
-            body: EmptyRequest()
-        )
-        return response.data
+        var collections: [OutlineCollection] = []
+        var offset = 0
+        while true {
+            let response: CollectionsResponse = try await post(
+                "collections.list",
+                body: PageRequest(offset: offset, limit: Self.pageSize)
+            )
+            collections.append(contentsOf: response.data)
+            guard shouldLoadNextPage(
+                response.pagination,
+                loaded: collections.count,
+                pageCount: response.data.count
+            ) else {
+                return collections
+            }
+            offset = collections.count
+        }
+    }
+
+    func validateReaderAccess() async throws -> [OutlineCollection] {
+        let probeID = UUID().uuidString
+        let collections = try await listCollections()
+        _ = try await searchDocuments(query: probeID)
+
+        let documents: [OutlineDocumentNode]
+        if let collectionID = collections.first?.id {
+            documents = try await listDocuments(collectionID: collectionID)
+        } else {
+            try await verifyPOSTAccess(
+                "collections.documents",
+                body: CollectionDocumentsRequest(id: probeID)
+            )
+            documents = []
+        }
+
+        if let documentID = documents.first?.firstDocumentID {
+            _ = try await document(id: documentID)
+        } else {
+            try await verifyPOSTAccess(
+                "documents.info",
+                body: DocumentInfoRequest(id: probeID),
+                apiVersion: 3
+            )
+        }
+        try await verifyAttachmentRedirectAccess(id: probeID)
+        return collections
     }
 
     func listDocuments(collectionID: String) async throws -> [OutlineDocumentNode] {
@@ -69,6 +133,29 @@ struct OutlineClient: Sendable {
             body: CollectionDocumentsRequest(id: collectionID)
         )
         return response.data
+    }
+
+    func searchDocuments(query: String) async throws -> [OutlineSearchResult] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+
+        var results: [OutlineSearchResult] = []
+        var offset = 0
+        while true {
+            let response: SearchResponse = try await post(
+                "documents.search",
+                body: SearchRequest(query: query, offset: offset, limit: Self.pageSize)
+            )
+            results.append(contentsOf: response.data)
+            guard shouldLoadNextPage(
+                response.pagination,
+                loaded: results.count,
+                pageCount: response.data.count
+            ) else {
+                return results
+            }
+            offset = results.count
+        }
     }
 
     func document(id: String) async throws -> OutlineRichDocument {
@@ -97,7 +184,7 @@ struct OutlineClient: Sendable {
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request)
-        } catch is CancellationError {
+        } catch let error where Self.isCancellation(error) {
             throw CancellationError()
         } catch {
             networkLogger.error("Asset transport failed: \(error.localizedDescription, privacy: .public)")
@@ -138,23 +225,13 @@ struct OutlineClient: Sendable {
         body: Body,
         apiVersion: Int = 3
     ) async throws -> Response {
-        var request = URLRequest(url: endpointURL(for: path))
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(String(apiVersion), forHTTPHeaderField: "X-API-Version")
-
-        do {
-            request.httpBody = try JSONEncoder().encode(body)
-        } catch {
-            throw OutlineClientError.requestFailed
-        }
+        let request = try postRequest(path, body: body, apiVersion: apiVersion)
 
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request)
-        } catch is CancellationError {
+        } catch let error where Self.isCancellation(error) {
             throw CancellationError()
         } catch {
             networkLogger.error("POST \(path, privacy: .public) transport failed: \(error.localizedDescription, privacy: .public)")
@@ -180,10 +257,89 @@ struct OutlineClient: Sendable {
         }
     }
 
+    private func postRequest<Body: Encodable>(
+        _ path: String,
+        body: Body,
+        apiVersion: Int
+    ) throws -> URLRequest {
+        var request = URLRequest(url: endpointURL(for: path))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(String(apiVersion), forHTTPHeaderField: "X-API-Version")
+        do {
+            request.httpBody = try JSONEncoder().encode(body)
+        } catch {
+            throw OutlineClientError.requestFailed
+        }
+        return request
+    }
+
+    private func verifyPOSTAccess<Body: Encodable>(
+        _ path: String,
+        body: Body,
+        apiVersion: Int = 3
+    ) async throws {
+        try await verifyAccess(
+            postRequest(path, body: body, apiVersion: apiVersion),
+            endpoint: path
+        )
+    }
+
+    private func verifyAttachmentRedirectAccess(id: String) async throws {
+        let url = endpointURL(for: "attachments.redirect")
+            .appending(queryItems: [URLQueryItem(name: "id", value: id)])
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        try await verifyAccess(request, endpoint: "attachments.redirect")
+    }
+
+    private func verifyAccess(_ request: URLRequest, endpoint: String) async throws {
+        let response: URLResponse
+        do {
+            (_, response) = try await session.data(for: request)
+        } catch let error where Self.isCancellation(error) {
+            throw CancellationError()
+        } catch {
+            networkLogger.error("\(endpoint, privacy: .public) permission probe transport failed: \(error.localizedDescription, privacy: .public)")
+            throw OutlineClientError.requestFailed
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OutlineClientError.invalidResponse
+        }
+        switch httpResponse.statusCode {
+        case 200..<300, 404:
+            return
+        case 403:
+            throw OutlineClientError.missingPermission(endpoint)
+        default:
+            throw OutlineClientError.httpFailure(statusCode: httpResponse.statusCode)
+        }
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
+    }
+
     private func endpointURL(for path: String) -> URL {
         baseURL
             .appendingPathComponent("api", isDirectory: true)
             .appendingPathComponent(path)
+    }
+
+    private static let pageSize = 100
+
+    private func shouldLoadNextPage(
+        _ pagination: Pagination?,
+        loaded: Int,
+        pageCount: Int
+    ) -> Bool {
+        guard let pagination else { return false }
+        if let total = pagination.total {
+            return loaded < total && pageCount > 0
+        }
+        return pageCount == Self.pageSize
     }
 
     private static func isValidHTTPSURL(_ url: URL) -> Bool {
@@ -197,10 +353,19 @@ struct OutlineClient: Sendable {
             && url.fragment == nil
     }
 
-    private struct EmptyRequest: Encodable {}
+    private struct PageRequest: Encodable {
+        let offset: Int
+        let limit: Int
+    }
 
     private struct CollectionDocumentsRequest: Encodable {
         let id: String
+    }
+
+    private struct SearchRequest: Encodable {
+        let query: String
+        let offset: Int
+        let limit: Int
     }
 
     private struct DocumentInfoRequest: Encodable {
@@ -215,11 +380,21 @@ struct OutlineClient: Sendable {
         let document: OutlineRichDocument
     }
 
+    private struct Pagination: Decodable {
+        let total: Int?
+    }
+
     private struct CollectionsResponse: Decodable {
         let data: [OutlineCollection]
+        let pagination: Pagination?
     }
 
     private struct DocumentsResponse: Decodable {
         let data: [OutlineDocumentNode]
+    }
+
+    private struct SearchResponse: Decodable {
+        let data: [OutlineSearchResult]
+        let pagination: Pagination?
     }
 }
