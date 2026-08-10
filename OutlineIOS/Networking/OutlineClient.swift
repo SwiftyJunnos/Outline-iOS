@@ -54,11 +54,11 @@ struct OutlineClient: Sendable {
         return response.data
     }
 
-    func document(id: String) async throws -> OutlineDocument {
+    func document(id: String) async throws -> OutlineRichDocument {
         let response: DocumentInfoResponse = try await post(
             "documents.info",
             body: DocumentInfoRequest(id: id),
-            apiVersion: 2
+            apiVersion: 3
         )
         return response.data.document
     }
@@ -132,7 +132,7 @@ struct OutlineClient: Sendable {
     }
 
     private struct DocumentInfoData: Decodable {
-        let document: OutlineDocument
+        let document: OutlineRichDocument
     }
 
     private struct CollectionsResponse: Decodable {

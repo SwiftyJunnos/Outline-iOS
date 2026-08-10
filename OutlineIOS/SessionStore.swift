@@ -101,7 +101,7 @@ final class SessionStore {
         return try await client.listDocuments(collectionID: collectionID)
     }
 
-    func document(id: String) async throws -> OutlineDocument {
+    func document(id: String) async throws -> OutlineRichDocument {
         guard let client else {
             throw OutlineClientError.requestFailed
         }

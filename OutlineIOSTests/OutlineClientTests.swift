@@ -131,7 +131,7 @@ struct OutlineClientTests {
     }
 
     @Test
-    func buildsDocumentsInfoRequestAndDecodesMarkdownDocument() async throws {
+    func buildsDocumentsInfoRequestAndDecodesRichDocument() async throws {
         let capture = RequestCapture()
         URLProtocolStub.handler = { request in
             capture.store(request)
@@ -141,7 +141,45 @@ struct OutlineClientTests {
                 httpVersion: nil,
                 headerFields: nil
             ))
-            let body = "{\"data\":{\"document\":{\"id\":\"document-id\",\"title\":\"Read me\",\"text\":\"# Heading\\n\\nMarkdown body\",\"url\":\"/doc/document-id\"}}}"
+            let body = """
+            {
+              "data": {
+                "document": {
+                  "id": "document-id",
+                  "title": "Read me",
+                  "url": "/doc/document-id",
+                  "data": {
+                    "type": "doc",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Welcome",
+                            "marks": [{"type": "strong"}]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "heading",
+                        "attrs": {"level": 2},
+                        "content": [{"type": "text", "text": "Details"}]
+                      },
+                      {
+                        "type": "image",
+                        "attrs": {
+                          "src": "https://example.com/image.png",
+                          "alt": "A sample image",
+                          "layoutClass": "center"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            """
             return StubResult(response: response, data: Data(body.utf8))
         }
         defer { URLProtocolStub.handler = nil }
@@ -157,14 +195,29 @@ struct OutlineClientTests {
         let request = try #require(capture.value)
         #expect(request.url?.absoluteString == "https://outline.example/team/api/documents.info")
         #expect(request.httpMethod == "POST")
-        #expect(request.value(forHTTPHeaderField: "X-API-Version") == "2")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer secret-token")
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(request.value(forHTTPHeaderField: "X-API-Version") == "3")
         #expect(capture.body == Data(#"{"id":"document-id"}"#.utf8))
-        #expect(document == OutlineDocument(
-            id: "document-id",
-            title: "Read me",
-            text: "# Heading\n\nMarkdown body",
-            url: "/doc/document-id"
-        ))
+        #expect(document.id == "document-id")
+        #expect(document.title == "Read me")
+        #expect(document.url == "/doc/document-id")
+        #expect(document.data.type == "doc")
+        #expect(document.data.attrs.isEmpty)
+        #expect(document.data.content.count == 3)
+
+        let paragraph = document.data.content[0]
+        #expect(paragraph.attrs.isEmpty)
+        #expect(paragraph.content[0].text == "Welcome")
+        #expect(paragraph.content[0].marks == [ProseMirrorMark(type: "strong")])
+
+        let heading = document.data.content[1]
+        #expect(heading.intAttribute("level") == 2)
+
+        let image = document.data.content[2]
+        #expect(image.stringAttribute("src") == "https://example.com/image.png")
+        #expect(image.stringAttribute("alt") == "A sample image")
+        #expect(image.stringAttribute("layoutClass") == "center")
     }
 
     @Test
