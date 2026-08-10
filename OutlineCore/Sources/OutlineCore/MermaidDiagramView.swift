@@ -92,11 +92,11 @@ private struct MermaidFullScreenView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
+            (colorScheme == .dark ? Color.black : Color.white).ignoresSafeArea()
 
             if let errorMessage {
                 Text(errorMessage)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .padding()
             } else {
                 MermaidWebView(
@@ -117,7 +117,7 @@ private struct MermaidFullScreenView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.white)
+            .foregroundStyle(.primary)
             .background(.thinMaterial, in: Circle())
             .accessibilityLabel("Close viewer")
             .padding()
@@ -151,14 +151,17 @@ private struct MermaidWebView {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = coordinator
         #if os(iOS)
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
+        webView.isOpaque = true
+        webView.backgroundColor = darkMode ? .black : .white
         webView.scrollView.isScrollEnabled = allowsZoom
         webView.scrollView.minimumZoomScale = 1
         webView.scrollView.maximumZoomScale = allowsZoom ? 8 : 1
         webView.scrollView.pinchGestureRecognizer?.isEnabled = allowsZoom
         webView.scrollView.bouncesZoom = allowsZoom
-        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = darkMode ? .black : .white
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        webView.scrollView.showsHorizontalScrollIndicator = false
+        webView.scrollView.showsVerticalScrollIndicator = false
         #endif
         return webView
     }
@@ -216,7 +219,8 @@ private struct MermaidWebView {
           <meta name="viewport" content="\(viewport)">
           <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:">
           <style>
-            html, body { margin: 0; padding: 0; background: \(background); overflow: \(overflow); \(allowsZoom ? "min-height: 100vh;" : "") }
+            html, body { margin: 0; padding: 0; background: \(background); overflow: \(overflow); scrollbar-width: none; \(allowsZoom ? "min-height: 100vh;" : "") }
+            html::-webkit-scrollbar, body::-webkit-scrollbar, #diagram::-webkit-scrollbar { display: none; }
             \(diagramCSS)
           </style>
         </head>
