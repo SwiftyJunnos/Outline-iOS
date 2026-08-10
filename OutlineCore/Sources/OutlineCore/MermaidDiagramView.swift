@@ -69,7 +69,7 @@ struct MermaidDiagramView: View {
             darkMode: colorScheme == .dark,
             allowsZoom: false,
             onHeightChange: {
-                height = max(80, $0)
+                height = max(1, $0)
                 renderedSignature = renderSignature
             },
             onError: {
@@ -226,8 +226,9 @@ private struct MermaidWebView {
           <script>
             const bytes = Uint8Array.from(atob('\(encodedSource)'), c => c.charCodeAt(0));
             const source = new TextDecoder().decode(bytes);
+            const diagram = document.getElementById('diagram');
             const reportHeight = () => {
-              const height = Math.ceil(document.documentElement.scrollHeight);
+              const height = Math.ceil(diagram.getBoundingClientRect().height);
               window.webkit.messageHandlers.mermaid.postMessage({ height });
             };
             (async () => {
@@ -239,8 +240,9 @@ private struct MermaidWebView {
                   theme: '\(theme)'
                 });
                 const result = await mermaid.render('mermaid-diagram', source);
-                document.getElementById('diagram').innerHTML = result.svg;
-                result.bindFunctions?.(document.getElementById('diagram'));
+                diagram.innerHTML = result.svg;
+                result.bindFunctions?.(diagram);
+                new ResizeObserver(reportHeight).observe(diagram);
                 requestAnimationFrame(reportHeight);
               } catch (error) {
                 window.webkit.messageHandlers.mermaid.postMessage({
