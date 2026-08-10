@@ -5,9 +5,18 @@ import WebKit
 struct MermaidDiagramView: View {
     let source: String
 
+    private let allowsFullScreen: Bool
+
     @Environment(\.colorScheme) private var colorScheme
     @State private var height: CGFloat = 160
     @State private var errorMessage: String?
+    @State private var renderedSignature: String?
+    @State private var isFullScreenPresented = false
+
+    init(source: String, allowsFullScreen: Bool = true) {
+        self.source = source
+        self.allowsFullScreen = allowsFullScreen
+    }
 
     var body: some View {
         Group {
@@ -26,17 +35,47 @@ struct MermaidDiagramView: View {
                 }
                 .padding(12)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            } else if allowsFullScreen, renderedSignature == renderSignature {
+                Button {
+                    isFullScreenPresented = true
+                } label: {
+                    diagram
+                        .accessibilityHidden(true)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open Mermaid diagram in full screen")
+                .accessibilityHint("Opens zoom and pan controls")
+                .mediaViewerCover(isPresented: $isFullScreenPresented) {
+                    ZoomableMediaViewer(accessibilityName: "Mermaid diagram") {
+                        MermaidDiagramView(source: source, allowsFullScreen: false)
+                    }
+                }
             } else {
-                MermaidWebView(
-                    source: source,
-                    darkMode: colorScheme == .dark,
-                    onHeightChange: { height = max(80, $0) },
-                    onError: { errorMessage = $0 }
-                )
-                .frame(height: height)
-                .accessibilityLabel("Mermaid diagram")
+                diagram
+                    .accessibilityLabel("Mermaid diagram")
             }
         }
+    }
+
+    private var renderSignature: String {
+        "\(colorScheme == .dark):\(source)"
+    }
+
+    private var diagram: some View {
+        MermaidWebView(
+            source: source,
+            darkMode: colorScheme == .dark,
+            onHeightChange: {
+                height = max(80, $0)
+                renderedSignature = renderSignature
+            },
+            onError: {
+                renderedSignature = nil
+                errorMessage = $0
+            }
+        )
+        .frame(height: height)
+        .allowsHitTesting(false)
     }
 }
 

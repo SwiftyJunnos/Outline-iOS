@@ -362,19 +362,36 @@ private struct MathBlock: View {
 private struct ImageBlock: View {
     let node: ProseMirrorNode
     let assetLoader: ProseMirrorAssetLoader?
-    @State private var data: Data?
+    @State private var image: Image?
     @State private var errorMessage: String?
     @State private var request = 0
+    @State private var isViewerPresented = false
 
     var body: some View {
         Group {
-            if let data, let image = platformImage(data: data) {
-                image.resizable().scaledToFit()
+            if let image {
+                Button {
+                    isViewerPresented = true
+                } label: {
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("View \(altText) full screen")
+                .accessibilityHint("Opens a full-screen viewer with zoom and pan controls")
+                .mediaViewerCover(isPresented: $isViewerPresented) {
+                    ZoomableMediaViewer(accessibilityName: altText) {
+                        image.resizable().scaledToFit()
+                    }
+                }
             } else if assetLoader == nil || source == nil {
                 Label(altText, systemImage: "photo")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 120)
                     .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                    .accessibilityLabel(altText)
             } else if let errorMessage {
                 VStack(spacing: 8) {
                     Label(altText, systemImage: "photo").foregroundStyle(.secondary)
@@ -386,13 +403,14 @@ private struct ImageBlock: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 120)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityLabel(altText)
             } else {
                 ProgressView("Loading image…")
                     .frame(maxWidth: .infinity, minHeight: 120)
+                    .accessibilityLabel(altText)
             }
         }
         .aspectRatio(aspectRatio, contentMode: .fit)
-        .accessibilityLabel(altText)
         .task(id: request) { await load() }
     }
 
@@ -419,11 +437,11 @@ private struct ImageBlock: View {
         errorMessage = nil
         do {
             let loadedData = try await assetLoader(source)
-            guard platformImage(data: loadedData) != nil else {
+            guard let loadedImage = platformImage(data: loadedData) else {
                 errorMessage = "The image format is not supported."
                 return
             }
-            data = loadedData
+            image = loadedImage
         } catch is CancellationError {
             return
         } catch {
