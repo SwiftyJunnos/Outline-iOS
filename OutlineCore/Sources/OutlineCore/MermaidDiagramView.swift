@@ -36,20 +36,24 @@ struct MermaidDiagramView: View {
                 .padding(12)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
             } else if allowsFullScreen, renderedSignature == renderSignature {
-                Button {
-                    isFullScreenPresented = true
-                } label: {
-                    diagram
-                        .accessibilityHidden(true)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Open Mermaid diagram in full screen")
-                .accessibilityHint("Opens zoom and pan controls")
-                .mediaViewerCover(isPresented: $isFullScreenPresented) {
-                    ZoomableMediaViewer(accessibilityName: "Mermaid diagram") {
-                        MermaidDiagramView(source: source, allowsFullScreen: false)
+                diagram
+                    .overlay {
+                        Button {
+                            isFullScreenPresented = true
+                        } label: {
+                            Color.clear
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Open Mermaid diagram in full screen")
+                        .accessibilityHint("Opens zoom and pan controls")
                     }
-                }
+                    .mediaViewerCover(isPresented: $isFullScreenPresented) {
+                        ZoomableMediaViewer(accessibilityName: "Mermaid diagram") {
+                            MermaidDiagramView(source: source, allowsFullScreen: false)
+                        }
+                    }
             } else {
                 diagram
                     .accessibilityLabel("Mermaid diagram")
