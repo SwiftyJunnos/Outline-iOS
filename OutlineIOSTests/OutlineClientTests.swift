@@ -131,6 +131,43 @@ struct OutlineClientTests {
     }
 
     @Test
+    func buildsDocumentsInfoRequestAndDecodesMarkdownDocument() async throws {
+        let capture = RequestCapture()
+        URLProtocolStub.handler = { request in
+            capture.store(request)
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            let body = "{\"data\":{\"document\":{\"id\":\"document-id\",\"title\":\"Read me\",\"text\":\"# Heading\\n\\nMarkdown body\",\"url\":\"/doc/document-id\"}}}"
+            return StubResult(response: response, data: Data(body.utf8))
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example/team/")!,
+            token: "secret-token",
+            session: makeStubSession()
+        )
+
+        let document = try await client.document(id: "document-id")
+
+        let request = try #require(capture.value)
+        #expect(request.url?.absoluteString == "https://outline.example/team/api/documents.info")
+        #expect(request.httpMethod == "POST")
+        #expect(request.value(forHTTPHeaderField: "X-API-Version") == "2")
+        #expect(capture.body == Data(#"{"id":"document-id"}"#.utf8))
+        #expect(document == OutlineDocument(
+            id: "document-id",
+            title: "Read me",
+            text: "# Heading\n\nMarkdown body",
+            url: "/doc/document-id"
+        ))
+    }
+
+    @Test
     func mapsHTTPFailure() async throws {
         URLProtocolStub.handler = { request in
             let response = try #require(HTTPURLResponse(

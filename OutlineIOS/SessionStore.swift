@@ -101,6 +101,14 @@ final class SessionStore {
         return try await client.listDocuments(collectionID: collectionID)
     }
 
+    func document(id: String) async throws -> OutlineDocument {
+        guard let client else {
+            throw OutlineClientError.requestFailed
+        }
+
+        return try await client.document(id: id)
+    }
+
     func disconnect() {
         client = nil
         state = .disconnected

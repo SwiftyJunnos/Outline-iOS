@@ -54,15 +54,25 @@ struct OutlineClient: Sendable {
         return response.data
     }
 
+    func document(id: String) async throws -> OutlineDocument {
+        let response: DocumentInfoResponse = try await post(
+            "documents.info",
+            body: DocumentInfoRequest(id: id),
+            apiVersion: 2
+        )
+        return response.data.document
+    }
+
     private func post<Response: Decodable, Body: Encodable>(
         _ path: String,
-        body: Body
+        body: Body,
+        apiVersion: Int = 3
     ) async throws -> Response {
         var request = URLRequest(url: endpointURL(for: path))
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("3", forHTTPHeaderField: "X-API-Version")
+        request.setValue(String(apiVersion), forHTTPHeaderField: "X-API-Version")
 
         do {
             request.httpBody = try JSONEncoder().encode(body)
@@ -111,6 +121,18 @@ struct OutlineClient: Sendable {
 
     private struct CollectionDocumentsRequest: Encodable {
         let id: String
+    }
+
+    private struct DocumentInfoRequest: Encodable {
+        let id: String
+    }
+
+    private struct DocumentInfoResponse: Decodable {
+        let data: DocumentInfoData
+    }
+
+    private struct DocumentInfoData: Decodable {
+        let document: OutlineDocument
     }
 
     private struct CollectionsResponse: Decodable {

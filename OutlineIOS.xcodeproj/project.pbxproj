@@ -11,11 +11,13 @@
 		A10000000000000000000010 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* SessionStore.swift */; };
 		A10000000000000000000011 /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* ConnectionView.swift */; };
 		A10000000000000000000012 /* DocumentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* DocumentListView.swift */; };
+		A10000000000000000000013 /* DocumentReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* DocumentReaderView.swift */; };
 		A10000000000000000000003 /* Credentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* Credentials.swift */; };
 		A10000000000000000000004 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* KeychainStore.swift */; };
 		B10000000000000000000001 /* OutlineCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* OutlineCollection.swift */; };
 		B10000000000000000000002 /* OutlineClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* OutlineClient.swift */; };
 		B10000000000000000000004 /* OutlineDocumentNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* OutlineDocumentNode.swift */; };
+		B10000000000000000000005 /* OutlineDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* OutlineDocument.swift */; };
 		B10000000000000000000003 /* OutlineClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* OutlineClientTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +37,7 @@
 		A20000000000000000000010 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
 		A20000000000000000000012 /* DocumentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentListView.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* DocumentReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentReaderView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* Outline.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Outline.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000004 /* Credentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Credentials.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -42,6 +45,7 @@
 		B20000000000000000000002 /* OutlineClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineClient.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* OutlineClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineClientTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000005 /* OutlineDocumentNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineDocumentNode.swift; sourceTree = "<group>"; };
+		B20000000000000000000006 /* OutlineDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineDocument.swift; sourceTree = "<group>"; };
 		B20000000000000000000004 /* OutlineIOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OutlineIOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -78,6 +82,7 @@
 				A20000000000000000000010 /* SessionStore.swift */,
 				A20000000000000000000011 /* ConnectionView.swift */,
 				A20000000000000000000012 /* DocumentListView.swift */,
+				A20000000000000000000013 /* DocumentReaderView.swift */,
 				A40000000000000000000004 /* Security */,
 				B40000000000000000000001 /* Networking */,
 			);
@@ -108,6 +113,7 @@
 				B20000000000000000000001 /* OutlineCollection.swift */,
 				B20000000000000000000002 /* OutlineClient.swift */,
 				B20000000000000000000005 /* OutlineDocumentNode.swift */,
+				B20000000000000000000006 /* OutlineDocument.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -207,11 +213,13 @@
 				A10000000000000000000010 /* SessionStore.swift in Sources */,
 				A10000000000000000000011 /* ConnectionView.swift in Sources */,
 				A10000000000000000000012 /* DocumentListView.swift in Sources */,
+				A10000000000000000000013 /* DocumentReaderView.swift in Sources */,
 				A10000000000000000000003 /* Credentials.swift in Sources */,
 				A10000000000000000000004 /* KeychainStore.swift in Sources */,
 				B10000000000000000000001 /* OutlineCollection.swift in Sources */,
 				B10000000000000000000002 /* OutlineClient.swift in Sources */,
 				B10000000000000000000004 /* OutlineDocumentNode.swift in Sources */,
+				B10000000000000000000005 /* OutlineDocument.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

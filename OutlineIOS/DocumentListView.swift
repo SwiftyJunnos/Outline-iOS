@@ -23,7 +23,11 @@ struct DocumentListView: View {
                 } else {
                     List {
                         OutlineGroup(documents, children: \.outlineChildren) { document in
-                            Text(document.title)
+                            NavigationLink {
+                                DocumentReaderView(store: store, documentID: document.id)
+                            } label: {
+                                Text(document.title)
+                            }
                         }
                     }
                 }
