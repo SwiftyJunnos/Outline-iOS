@@ -256,6 +256,113 @@ struct OutlineClientTests {
     }
 
     @Test
+    func loadsRelativeAssetWithSameOriginAuthorization() async throws {
+        let capture = RequestCapture()
+        URLProtocolStub.handler = { request in
+            capture.store(request)
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: Data("asset".utf8))
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example/team/")!,
+            token: "secret-token",
+            session: makeStubSession()
+        )
+
+        let data = try await client.assetData(for: "images/sample.png")
+
+        let request = try #require(capture.value)
+        #expect(data == Data("asset".utf8))
+        #expect(request.url?.absoluteString == "https://outline.example/team/images/sample.png")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer secret-token")
+    }
+
+    @Test
+    func doesNotAuthorizeExternalHTTPSAsset() async throws {
+        let capture = RequestCapture()
+        URLProtocolStub.handler = { request in
+            capture.store(request)
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: Data("external".utf8))
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example/team/")!,
+            token: "secret-token",
+            session: makeStubSession()
+        )
+
+        let data = try await client.assetData(for: "https://cdn.example/image.png")
+
+        let request = try #require(capture.value)
+        #expect(data == Data("external".utf8))
+        #expect(request.url?.absoluteString == "https://cdn.example/image.png")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    @Test
+    func rejectsHTTPAndUnsafeAssetURLs() async throws {
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example")!,
+            token: "token",
+            session: makeStubSession()
+        )
+
+        for source in ["http://outline.example/image.png", "file:///tmp/image.png"] {
+            do {
+                _ = try await client.assetData(for: source)
+                Issue.record("Expected \(source) to be rejected")
+            } catch let error as OutlineClientError {
+                #expect(error == .invalidAssetURL)
+            } catch {
+                Issue.record("Unexpected error for \(source): \(error)")
+            }
+        }
+    }
+
+    @Test
+    func mapsAssetHTTPFailure() async throws {
+        URLProtocolStub.handler = { request in
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 404,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: Data())
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example")!,
+            token: "token",
+            session: makeStubSession()
+        )
+
+        do {
+            _ = try await client.assetData(for: "/image.png")
+            Issue.record("Expected the client to throw for an asset HTTP failure")
+        } catch let error as OutlineClientError {
+            #expect(error == .httpFailure(statusCode: 404))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
     func rejectsNonHTTPSBaseURL() {
         #expect(throws: OutlineClientError.invalidBaseURL) {
             try OutlineClient(baseURL: URL(string: "http://outline.example")!, token: "token")

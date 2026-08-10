@@ -6,6 +6,7 @@ private let networkLogger = Logger(subsystem: "house.junnos.outlineios", categor
 
 enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
     case invalidBaseURL
+    case invalidAssetURL
     case invalidResponse
     case httpFailure(statusCode: Int)
     case decodingFailed
@@ -15,6 +16,8 @@ enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
         switch self {
         case .invalidBaseURL:
             "Enter a valid HTTPS server URL."
+        case .invalidAssetURL:
+            "Unable to load this asset."
         case .invalidResponse:
             "The server returned an invalid response."
         case let .httpFailure(statusCode):
@@ -74,6 +77,56 @@ struct OutlineClient: Sendable {
         return response.data.document
     }
 
+    func assetData(for source: String) async throws -> Data {
+        guard
+            let url = URL(string: source, relativeTo: baseURL)?.absoluteURL,
+            Self.isValidHTTPSURL(url)
+        else {
+            throw OutlineClientError.invalidAssetURL
+        }
+
+        var request = URLRequest(url: url)
+        if Self.hasSameOrigin(url, as: baseURL) {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            networkLogger.error("Asset transport failed: \(error.localizedDescription, privacy: .public)")
+            throw OutlineClientError.requestFailed
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OutlineClientError.invalidResponse
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            networkLogger.error("Asset request failed with HTTP \(httpResponse.statusCode)")
+            throw OutlineClientError.httpFailure(statusCode: httpResponse.statusCode)
+        }
+
+        return data
+    }
+
+    private static func hasSameOrigin(_ lhs: URL, as rhs: URL) -> Bool {
+        guard
+            let lhsScheme = lhs.scheme?.lowercased(),
+            let rhsScheme = rhs.scheme?.lowercased(),
+            let lhsHost = lhs.host?.lowercased(),
+            let rhsHost = rhs.host?.lowercased()
+        else {
+            return false
+        }
+
+        return lhsScheme == rhsScheme
+            && lhsHost == rhsHost
+            && (lhs.port ?? 443) == (rhs.port ?? 443)
+    }
+
     private func post<Response: Decodable, Body: Encodable>(
         _ path: String,
         body: Body,
@@ -124,9 +177,13 @@ struct OutlineClient: Sendable {
             .appendingPathComponent(path)
     }
 
-    private static func isValidBaseURL(_ url: URL) -> Bool {
+    private static func isValidHTTPSURL(_ url: URL) -> Bool {
         url.scheme?.caseInsensitiveCompare("https") == .orderedSame
             && !(url.host?.isEmpty ?? true)
+    }
+
+    private static func isValidBaseURL(_ url: URL) -> Bool {
+        isValidHTTPSURL(url)
             && url.query == nil
             && url.fragment == nil
     }

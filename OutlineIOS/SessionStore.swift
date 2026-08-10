@@ -110,6 +110,19 @@ final class SessionStore {
         return try await client.document(id: id)
     }
 
+    func assetData(for source: String) async throws -> Data {
+        guard let client else {
+            throw OutlineClientError.requestFailed
+        }
+
+        return try await client.assetData(for: source)
+    }
+
+    var connectedServerURL: URL? {
+        guard case let .connected(serverURL, _) = state else { return nil }
+        return serverURL
+    }
+
     func webURL(for documentPath: String) -> URL? {
         guard case let .connected(serverURL, _) = state else { return nil }
         return URL(string: documentPath, relativeTo: serverURL)?.absoluteURL

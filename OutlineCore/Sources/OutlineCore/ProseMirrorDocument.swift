@@ -59,6 +59,14 @@ public struct ProseMirrorNode: Codable, Equatable, Sendable {
     public func boolAttribute(_ key: String) -> Bool? {
         attrs[key]?.boolValue
     }
+
+    public func doubleAttribute(_ key: String) -> Double? {
+        attrs[key]?.numberValue
+    }
+
+    public func arrayAttribute(_ key: String) -> [ProseMirrorValue]? {
+        attrs[key]?.arrayValue
+    }
 }
 
 public struct ProseMirrorMark: Codable, Equatable, Sendable {
@@ -105,6 +113,16 @@ public enum ProseMirrorValue: Codable, Equatable, Sendable {
 
     public var boolValue: Bool? {
         guard case let .bool(value) = self else { return nil }
+        return value
+    }
+
+    public var numberValue: Double? {
+        guard case let .number(value) = self else { return nil }
+        return value
+    }
+
+    public var arrayValue: [ProseMirrorValue]? {
+        guard case let .array(value) = self else { return nil }
         return value
     }
 

@@ -16,7 +16,7 @@ struct DocumentReaderView: View {
                 ProgressView("Loading document…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .loaded(document):
-                DocumentContent(document: document)
+                DocumentContent(document: document, store: store)
             case let .failed(message):
                 ContentUnavailableView {
                     Label("Unable to load document", systemImage: "exclamationmark.circle")
@@ -66,6 +66,7 @@ struct DocumentReaderView: View {
 
 private struct DocumentContent: View {
     let document: OutlineRichDocument
+    let store: SessionStore
 
     var body: some View {
         ScrollView {
@@ -74,7 +75,13 @@ private struct DocumentContent: View {
                     .font(.largeTitle.bold())
                     .accessibilityAddTraits(.isHeader)
 
-                ProseMirrorDocumentView(document: document)
+                ProseMirrorDocumentView(
+                    document: document,
+                    baseURL: store.connectedServerURL,
+                    assetLoader: { source in
+                        try await store.assetData(for: source)
+                    }
+                )
             }
             .frame(maxWidth: 680, alignment: .leading)
             .padding()
