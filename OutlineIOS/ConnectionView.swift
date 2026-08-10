@@ -47,6 +47,10 @@ struct ConnectionView: View {
                     .onSubmit(connect)
                     .accessibilityLabel("API key")
             }
+
+            Text("Required permissions: collections.list, collections.documents, documents.info, attachments.redirect.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .disabled(store.isConnecting)
 

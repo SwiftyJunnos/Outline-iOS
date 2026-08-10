@@ -7,6 +7,7 @@ private let networkLogger = Logger(subsystem: "house.junnos.outlineios", categor
 enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
     case invalidBaseURL
     case invalidAssetURL
+    case missingAttachmentPermission
     case invalidResponse
     case httpFailure(statusCode: Int)
     case decodingFailed
@@ -18,6 +19,8 @@ enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
             "Enter a valid HTTPS server URL."
         case .invalidAssetURL:
             "Unable to load this asset."
+        case .missingAttachmentPermission:
+            "The API key needs attachments.redirect permission to load images (HTTP 403)."
         case .invalidResponse:
             "The server returned an invalid response."
         case let .httpFailure(statusCode):
@@ -105,6 +108,9 @@ struct OutlineClient: Sendable {
             throw OutlineClientError.invalidResponse
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 403, url.path == "/api/attachments.redirect" {
+                throw OutlineClientError.missingAttachmentPermission
+            }
             networkLogger.error("Asset request failed with HTTP \(httpResponse.statusCode)")
             throw OutlineClientError.httpFailure(statusCode: httpResponse.statusCode)
         }

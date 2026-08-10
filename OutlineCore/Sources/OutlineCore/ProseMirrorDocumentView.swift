@@ -354,19 +354,26 @@ private struct ImageBlock: View {
     let node: ProseMirrorNode
     let assetLoader: ProseMirrorAssetLoader?
     @State private var data: Data?
-    @State private var failed = false
+    @State private var errorMessage: String?
     @State private var request = 0
 
     var body: some View {
         Group {
             if let data, let image = platformImage(data: data) {
                 image.resizable().scaledToFit()
-            } else if failed || assetLoader == nil || source == nil {
+            } else if assetLoader == nil || source == nil {
+                Label(altText, systemImage: "photo")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            } else if let errorMessage {
                 VStack(spacing: 8) {
                     Label(altText, systemImage: "photo").foregroundStyle(.secondary)
-                    if assetLoader != nil, source != nil {
-                        Button("Try again") { request += 1 }
-                    }
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("Try again") { request += 1 }
                 }
                 .frame(maxWidth: .infinity, minHeight: 120)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
@@ -400,14 +407,18 @@ private struct ImageBlock: View {
     @MainActor
     private func load() async {
         guard let source, let assetLoader else { return }
-        failed = false
+        errorMessage = nil
         do {
-            data = try await assetLoader(source)
-            failed = platformImage(data: data!) == nil
+            let loadedData = try await assetLoader(source)
+            guard platformImage(data: loadedData) != nil else {
+                errorMessage = "The image format is not supported."
+                return
+            }
+            data = loadedData
         } catch is CancellationError {
             return
         } catch {
-            failed = true
+            errorMessage = error.localizedDescription
         }
     }
 }

@@ -363,6 +363,36 @@ struct OutlineClientTests {
     }
 
     @Test
+    func explainsMissingAttachmentRedirectScope() async throws {
+        URLProtocolStub.handler = { request in
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 403,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: Data())
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example")!,
+            token: "token",
+            session: makeStubSession()
+        )
+
+        do {
+            _ = try await client.assetData(for: "/api/attachments.redirect?id=attachment-id")
+            Issue.record("Expected attachment permission failure")
+        } catch {
+            #expect(
+                error.localizedDescription
+                    == "The API key needs attachments.redirect permission to load images (HTTP 403)."
+            )
+        }
+    }
+
+    @Test
     func rejectsNonHTTPSBaseURL() {
         #expect(throws: OutlineClientError.invalidBaseURL) {
             try OutlineClient(baseURL: URL(string: "http://outline.example")!, token: "token")
