@@ -50,9 +50,7 @@ struct MermaidDiagramView: View {
                         .accessibilityHint("Opens zoom and pan controls")
                     }
                     .mediaViewerCover(isPresented: $isFullScreenPresented) {
-                        ZoomableMediaViewer(accessibilityName: "Mermaid diagram") {
-                            MermaidDiagramView(source: source, allowsFullScreen: false)
-                        }
+                        MermaidFullScreenView(source: source)
                     }
             } else {
                 diagram
@@ -69,6 +67,7 @@ struct MermaidDiagramView: View {
         MermaidWebView(
             source: source,
             darkMode: colorScheme == .dark,
+            allowsZoom: false,
             onHeightChange: {
                 height = max(80, $0)
                 renderedSignature = renderSignature
@@ -83,10 +82,54 @@ struct MermaidDiagramView: View {
     }
 }
 
+private struct MermaidFullScreenView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    let source: String
+
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .foregroundStyle(.white)
+                    .padding()
+            } else {
+                MermaidWebView(
+                    source: source,
+                    darkMode: colorScheme == .dark,
+                    allowsZoom: true,
+                    onHeightChange: { _ in },
+                    onError: { errorMessage = $0 }
+                )
+                .ignoresSafeArea()
+            }
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .background(.thinMaterial, in: Circle())
+            .accessibilityLabel("Close viewer")
+            .padding()
+        }
+    }
+}
+
 @MainActor
 private struct MermaidWebView {
     let source: String
     let darkMode: Bool
+    let allowsZoom: Bool
     let onHeightChange: (CGFloat) -> Void
     let onError: (String) -> Void
 
@@ -100,6 +143,9 @@ private struct MermaidWebView {
 
         let configuration = WKWebViewConfiguration()
         configuration.userContentController = contentController
+        #if os(iOS)
+        configuration.ignoresViewportScaleLimits = allowsZoom
+        #endif
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -107,7 +153,11 @@ private struct MermaidWebView {
         #if os(iOS)
         webView.isOpaque = false
         webView.backgroundColor = .clear
-        webView.scrollView.isScrollEnabled = false
+        webView.scrollView.isScrollEnabled = allowsZoom
+        webView.scrollView.minimumZoomScale = 1
+        webView.scrollView.maximumZoomScale = allowsZoom ? 8 : 1
+        webView.scrollView.pinchGestureRecognizer?.isEnabled = allowsZoom
+        webView.scrollView.bouncesZoom = allowsZoom
         webView.scrollView.backgroundColor = .clear
         #endif
         return webView
@@ -122,13 +172,16 @@ private struct MermaidWebView {
         coordinator.signature = signature
 
         do {
-            webView.loadHTMLString(try Self.html(source: source, darkMode: darkMode), baseURL: nil)
+            webView.loadHTMLString(
+                try Self.html(source: source, darkMode: darkMode, allowsZoom: allowsZoom),
+                baseURL: nil
+            )
         } catch {
             onError(error.localizedDescription)
         }
     }
 
-    private static func html(source: String, darkMode: Bool) throws -> String {
+    private static func html(source: String, darkMode: Bool, allowsZoom: Bool) throws -> String {
         guard
             let scriptURL = Bundle.module.url(
                 forResource: "mermaid-11.12.0.min",
@@ -142,17 +195,29 @@ private struct MermaidWebView {
         let encodedSource = Data(source.utf8).base64EncodedString()
         let theme = darkMode ? "dark" : "default"
         let background = darkMode ? "#000000" : "#ffffff"
+        let viewport = allowsZoom
+            ? "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=8, user-scalable=yes"
+            : "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+        let overflow = allowsZoom ? "auto" : "hidden"
+        let diagramCSS = allowsZoom
+            ? """
+              #diagram { display: flex; justify-content: center; align-items: center; min-height: 100vh; width: 100%; padding: 16px; box-sizing: border-box; }
+              #diagram svg { display: block; max-width: none !important; width: auto !important; height: auto !important; }
+              """
+            : """
+              #diagram { display: flex; justify-content: center; width: 100%; }
+              #diagram svg { display: block; width: 100%; height: auto; max-width: 100%; }
+              """
 
         return """
         <!doctype html>
         <html>
         <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+          <meta name="viewport" content="\(viewport)">
           <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:">
           <style>
-            html, body { margin: 0; padding: 0; background: \(background); overflow: hidden; }
-            #diagram { display: flex; justify-content: center; width: 100%; }
-            #diagram svg { display: block; width: 100%; height: auto; max-width: 100%; }
+            html, body { margin: 0; padding: 0; background: \(background); overflow: \(overflow); \(allowsZoom ? "min-height: 100vh;" : "") }
+            \(diagramCSS)
           </style>
         </head>
         <body>
