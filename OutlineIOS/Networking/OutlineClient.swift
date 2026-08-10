@@ -1,3 +1,4 @@
+import OutlineCore
 import Foundation
 
 enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {

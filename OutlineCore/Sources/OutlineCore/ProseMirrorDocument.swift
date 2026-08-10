@@ -1,12 +1,12 @@
 import Foundation
 
-struct OutlineRichDocument: Decodable, Equatable, Identifiable, Sendable {
-    let id: String
-    let title: String
-    let url: String
-    let data: ProseMirrorNode
+public struct OutlineRichDocument: Decodable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let title: String
+    public let url: String
+    public let data: ProseMirrorNode
 
-    init(id: String, title: String, url: String, data: ProseMirrorNode) {
+    public init(id: String, title: String, url: String, data: ProseMirrorNode) {
         self.id = id
         self.title = title
         self.url = url
@@ -14,14 +14,14 @@ struct OutlineRichDocument: Decodable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct ProseMirrorNode: Codable, Equatable, Sendable {
-    let type: String
-    let attrs: [String: ProseMirrorValue]
-    let content: [ProseMirrorNode]
-    let text: String?
-    let marks: [ProseMirrorMark]
+public struct ProseMirrorNode: Codable, Equatable, Sendable {
+    public let type: String
+    public let attrs: [String: ProseMirrorValue]
+    public let content: [ProseMirrorNode]
+    public let text: String?
+    public let marks: [ProseMirrorMark]
 
-    init(
+    public init(
         type: String,
         attrs: [String: ProseMirrorValue] = [:],
         content: [ProseMirrorNode] = [],
@@ -36,14 +36,10 @@ struct ProseMirrorNode: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case type
-        case attrs
-        case content
-        case text
-        case marks
+        case type, attrs, content, text, marks
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(String.self, forKey: .type)
         attrs = try container.decodeIfPresent([String: ProseMirrorValue].self, forKey: .attrs) ?? [:]
@@ -52,53 +48,44 @@ struct ProseMirrorNode: Codable, Equatable, Sendable {
         marks = try container.decodeIfPresent([ProseMirrorMark].self, forKey: .marks) ?? []
     }
 
-    func stringAttribute(_ key: String) -> String? {
+    public func stringAttribute(_ key: String) -> String? {
         attrs[key]?.stringValue
     }
 
-    func intAttribute(_ key: String) -> Int? {
+    public func intAttribute(_ key: String) -> Int? {
         attrs[key]?.intValue
     }
 
-    func boolAttribute(_ key: String) -> Bool? {
+    public func boolAttribute(_ key: String) -> Bool? {
         attrs[key]?.boolValue
     }
 }
 
-struct ProseMirrorMark: Codable, Equatable, Sendable {
-    let type: String
-    let attrs: [String: ProseMirrorValue]
+public struct ProseMirrorMark: Codable, Equatable, Sendable {
+    public let type: String
+    public let attrs: [String: ProseMirrorValue]
 
-    init(type: String, attrs: [String: ProseMirrorValue] = [:]) {
+    public init(type: String, attrs: [String: ProseMirrorValue] = [:]) {
         self.type = type
         self.attrs = attrs
     }
 
     private enum CodingKeys: String, CodingKey {
-        case type
-        case attrs
+        case type, attrs
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(String.self, forKey: .type)
         attrs = try container.decodeIfPresent([String: ProseMirrorValue].self, forKey: .attrs) ?? [:]
     }
 
-    func stringAttribute(_ key: String) -> String? {
+    public func stringAttribute(_ key: String) -> String? {
         attrs[key]?.stringValue
-    }
-
-    func intAttribute(_ key: String) -> Int? {
-        attrs[key]?.intValue
-    }
-
-    func boolAttribute(_ key: String) -> Bool? {
-        attrs[key]?.boolValue
     }
 }
 
-enum ProseMirrorValue: Codable, Equatable, Sendable {
+public enum ProseMirrorValue: Codable, Equatable, Sendable {
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -106,17 +93,17 @@ enum ProseMirrorValue: Codable, Equatable, Sendable {
     case array([ProseMirrorValue])
     case null
 
-    var stringValue: String? {
+    public var stringValue: String? {
         guard case let .string(value) = self else { return nil }
         return value
     }
 
-    var intValue: Int? {
+    public var intValue: Int? {
         guard case let .number(value) = self else { return nil }
         return Int(exactly: value)
     }
 
-    var boolValue: Bool? {
+    public var boolValue: Bool? {
         guard case let .bool(value) = self else { return nil }
         return value
     }
@@ -136,7 +123,7 @@ enum ProseMirrorValue: Codable, Equatable, Sendable {
         }
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         if let container = try? decoder.container(keyedBy: CodingKey.self) {
             var object: [String: ProseMirrorValue] = [:]
             for key in container.allKeys {
@@ -172,7 +159,7 @@ enum ProseMirrorValue: Codable, Equatable, Sendable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         switch self {
         case let .object(object):
             var container = encoder.container(keyedBy: CodingKey.self)

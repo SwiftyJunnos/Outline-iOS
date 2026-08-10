@@ -1,3 +1,4 @@
+import OutlineCore
 import Foundation
 import Testing
 @testable import Outline

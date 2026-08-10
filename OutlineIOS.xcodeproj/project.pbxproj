@@ -17,8 +17,9 @@
 		B10000000000000000000001 /* OutlineCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* OutlineCollection.swift */; };
 		B10000000000000000000002 /* OutlineClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* OutlineClient.swift */; };
 		B10000000000000000000004 /* OutlineDocumentNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* OutlineDocumentNode.swift */; };
-		B10000000000000000000005 /* OutlineDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* OutlineDocument.swift */; };
 		B10000000000000000000003 /* OutlineClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* OutlineClientTests.swift */; };
+		C10000000000000000000001 /* OutlineCore in Frameworks */ = {isa = PBXBuildFile; productRef = C20000000000000000000001 /* OutlineCore */; };
+		C10000000000000000000002 /* OutlineCore in Frameworks */ = {isa = PBXBuildFile; productRef = C20000000000000000000002 /* OutlineCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,7 +46,6 @@
 		B20000000000000000000002 /* OutlineClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineClient.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* OutlineClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineClientTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000005 /* OutlineDocumentNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineDocumentNode.swift; sourceTree = "<group>"; };
-		B20000000000000000000006 /* OutlineDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineDocument.swift; sourceTree = "<group>"; };
 		B20000000000000000000004 /* OutlineIOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OutlineIOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -53,13 +53,17 @@
 		A30000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+				C10000000000000000000001 /* OutlineCore in Frameworks */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B30000000000000000000004 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+				C10000000000000000000002 /* OutlineCore in Frameworks */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -113,7 +117,6 @@
 				B20000000000000000000001 /* OutlineCollection.swift */,
 				B20000000000000000000002 /* OutlineClient.swift */,
 				B20000000000000000000005 /* OutlineDocumentNode.swift */,
-				B20000000000000000000006 /* OutlineDocument.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -138,6 +141,9 @@
 				A30000000000000000000003 /* Resources */,
 			);
 			buildRules = ();
+			packageProductDependencies = (
+				C20000000000000000000001 /* OutlineCore */,
+			);
 			dependencies = ();
 			name = OutlineIOS;
 			productName = Outline;
@@ -153,6 +159,9 @@
 				B30000000000000000000006 /* Resources */,
 			);
 			buildRules = ();
+			packageProductDependencies = (
+				C20000000000000000000002 /* OutlineCore */,
+			);
 			dependencies = (
 				B91000000000000000000001 /* PBXTargetDependency */,
 			);
@@ -182,6 +191,9 @@
 			knownRegions = (en, Base);
 			mainGroup = A40000000000000000000001;
 			productRefGroup = A40000000000000000000003 /* Products */;
+			packageReferences = (
+				C30000000000000000000001 /* XCLocalSwiftPackageReference "OutlineCore" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (A50000000000000000000001 /* OutlineIOS */, B50000000000000000000002 /* OutlineIOSTests */);
@@ -219,7 +231,6 @@
 				B10000000000000000000001 /* OutlineCollection.swift in Sources */,
 				B10000000000000000000002 /* OutlineClient.swift in Sources */,
 				B10000000000000000000004 /* OutlineDocumentNode.swift in Sources */,
-				B10000000000000000000005 /* OutlineDocument.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -380,6 +391,26 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C30000000000000000000001 /* XCLocalSwiftPackageReference "OutlineCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = OutlineCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C20000000000000000000001 /* OutlineCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C30000000000000000000001 /* XCLocalSwiftPackageReference "OutlineCore" */;
+			productName = OutlineCore;
+		};
+		C20000000000000000000002 /* OutlineCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C30000000000000000000001 /* XCLocalSwiftPackageReference "OutlineCore" */;
+			productName = OutlineCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A70000000000000000000001 /* Project object */;
 }
