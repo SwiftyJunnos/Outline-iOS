@@ -66,6 +66,71 @@ struct OutlineClientTests {
     }
 
     @Test
+    func buildsDocumentsPathAndRequest() async throws {
+        let capture = RequestCapture()
+        URLProtocolStub.handler = { request in
+            capture.store(request)
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: Data("{\"data\":[]}".utf8))
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example/team/")!,
+            token: "secret-token",
+            session: makeStubSession()
+        )
+
+        _ = try await client.listDocuments(collectionID: "collection-id")
+
+        let request = try #require(capture.value)
+        #expect(request.url?.absoluteString == "https://outline.example/team/api/collections.documents")
+        #expect(request.httpMethod == "POST")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer secret-token")
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(request.value(forHTTPHeaderField: "X-API-Version") == "3")
+        #expect(capture.body == Data("{\"id\":\"collection-id\"}".utf8))
+    }
+
+    @Test
+    func decodesNestedDocuments() async throws {
+        URLProtocolStub.handler = { request in
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            let body = """
+            {"data":[{"id":"root","title":"Root","url":"/doc/root","children":[{"id":"child","title":"Child","url":"/doc/child","children":[{"id":"leaf","title":"Leaf","url":"/doc/leaf","children":[]}]}]}]}
+            """
+            return StubResult(response: response, data: Data(body.utf8))
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example")!,
+            token: "token",
+            session: makeStubSession()
+        )
+
+        let documents = try await client.listDocuments(collectionID: "collection-id")
+
+        let leaf = OutlineDocumentNode(id: "leaf", title: "Leaf", url: "/doc/leaf", children: [])
+        let child = OutlineDocumentNode(id: "child", title: "Child", url: "/doc/child", children: [leaf])
+        let root = OutlineDocumentNode(id: "root", title: "Root", url: "/doc/root", children: [child])
+        #expect(documents == [root])
+        #expect(documents[0].outlineChildren == [child])
+        #expect(documents[0].children[0].outlineChildren == [leaf])
+        #expect(documents[0].children[0].children[0].outlineChildren == nil)
+    }
+
+    @Test
     func mapsHTTPFailure() async throws {
         URLProtocolStub.handler = { request in
             let response = try #require(HTTPURLResponse(

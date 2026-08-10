@@ -39,12 +39,36 @@ struct OutlineClient: Sendable {
     }
 
     func listCollections() async throws -> [OutlineCollection] {
-        var request = URLRequest(url: endpointURL)
+        let response: CollectionsResponse = try await post(
+            "collections.list",
+            body: EmptyRequest()
+        )
+        return response.data
+    }
+
+    func listDocuments(collectionID: String) async throws -> [OutlineDocumentNode] {
+        let response: DocumentsResponse = try await post(
+            "collections.documents",
+            body: CollectionDocumentsRequest(id: collectionID)
+        )
+        return response.data
+    }
+
+    private func post<Response: Decodable, Body: Encodable>(
+        _ path: String,
+        body: Body
+    ) async throws -> Response {
+        var request = URLRequest(url: endpointURL(for: path))
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("3", forHTTPHeaderField: "X-API-Version")
-        request.httpBody = Data("{}".utf8)
+
+        do {
+            request.httpBody = try JSONEncoder().encode(body)
+        } catch {
+            throw OutlineClientError.requestFailed
+        }
 
         let data: Data
         let response: URLResponse
@@ -64,16 +88,16 @@ struct OutlineClient: Sendable {
         }
 
         do {
-            return try JSONDecoder().decode(CollectionsResponse.self, from: data).data
+            return try JSONDecoder().decode(Response.self, from: data)
         } catch {
             throw OutlineClientError.decodingFailed
         }
     }
 
-    private var endpointURL: URL {
+    private func endpointURL(for path: String) -> URL {
         baseURL
             .appendingPathComponent("api", isDirectory: true)
-            .appendingPathComponent("collections.list")
+            .appendingPathComponent(path)
     }
 
     private static func isValidBaseURL(_ url: URL) -> Bool {
@@ -83,7 +107,17 @@ struct OutlineClient: Sendable {
             && url.fragment == nil
     }
 
+    private struct EmptyRequest: Encodable {}
+
+    private struct CollectionDocumentsRequest: Encodable {
+        let id: String
+    }
+
     private struct CollectionsResponse: Decodable {
         let data: [OutlineCollection]
+    }
+
+    private struct DocumentsResponse: Decodable {
+        let data: [OutlineDocumentNode]
     }
 }

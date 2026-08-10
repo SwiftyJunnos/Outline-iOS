@@ -14,6 +14,7 @@ final class SessionStore {
     private(set) var errorMessage: String?
 
     private let keychainStore: KeychainStore
+    private var client: OutlineClient?
 
     init(keychainStore: KeychainStore = KeychainStore()) {
         self.keychainStore = keychainStore
@@ -29,6 +30,7 @@ final class SessionStore {
 
     func restore() async {
         guard case .disconnected = state else { return }
+        client = nil
 
         let credentials: Credentials
         do {
@@ -45,6 +47,7 @@ final class SessionStore {
         do {
             let client = try OutlineClient(baseURL: credentials.serverURL, token: credentials.token)
             let collections = try await client.listCollections()
+            self.client = client
             state = .connected(serverURL: credentials.serverURL, collections: collections)
         } catch {
             state = .disconnected
@@ -53,6 +56,8 @@ final class SessionStore {
     }
 
     func connect(serverURL: String, token: String) async {
+        guard case .disconnected = state else { return }
+        client = nil
         let trimmedServerURL = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedServerURL.isEmpty, let url = URL(string: trimmedServerURL) else {
@@ -67,9 +72,10 @@ final class SessionStore {
         errorMessage = nil
         state = .connecting
 
+        let client: OutlineClient
         let collections: [OutlineCollection]
         do {
-            let client = try OutlineClient(baseURL: url, token: trimmedToken)
+            client = try OutlineClient(baseURL: url, token: trimmedToken)
             collections = try await client.listCollections()
         } catch {
             state = .disconnected
@@ -79,6 +85,7 @@ final class SessionStore {
 
         do {
             try keychainStore.save(Credentials(serverURL: url, token: trimmedToken))
+            self.client = client
             state = .connected(serverURL: url, collections: collections)
         } catch {
             state = .disconnected
@@ -86,13 +93,23 @@ final class SessionStore {
         }
     }
 
+    func documents(in collectionID: String) async throws -> [OutlineDocumentNode] {
+        guard let client else {
+            throw OutlineClientError.requestFailed
+        }
+
+        return try await client.listDocuments(collectionID: collectionID)
+    }
+
     func disconnect() {
+        client = nil
+        state = .disconnected
+
         do {
             try keychainStore.delete()
-            state = .disconnected
             errorMessage = nil
         } catch {
-            errorMessage = "Unable to remove saved credentials. Try disconnecting again."
+            errorMessage = "Connection closed, but saved credentials could not be removed. Check Keychain access, then reconnect and disconnect again."
         }
     }
 }

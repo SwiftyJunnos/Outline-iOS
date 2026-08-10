@@ -84,7 +84,11 @@ struct ConnectionView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(collections, id: \.id) { collection in
-                    Text(collection.name)
+                    NavigationLink {
+                        DocumentListView(store: store, collection: collection)
+                    } label: {
+                        Text(collection.name)
+                    }
                 }
             }
         }
