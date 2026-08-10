@@ -7,7 +7,7 @@ private let networkLogger = Logger(subsystem: "house.junnos.outlineios", categor
 enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
     case invalidBaseURL
     case invalidAssetURL
-    case missingAttachmentPermission
+    case missingPermission(String)
     case invalidResponse
     case httpFailure(statusCode: Int)
     case decodingFailed
@@ -19,8 +19,8 @@ enum OutlineClientError: Error, Equatable, LocalizedError, Sendable {
             "Enter a valid HTTPS server URL."
         case .invalidAssetURL:
             "Unable to load this asset."
-        case .missingAttachmentPermission:
-            "The API key needs attachments.redirect permission to load images (HTTP 403)."
+        case let .missingPermission(permission):
+            "This API key needs the \(permission) permission. Create a new API key with full access or this permission, then reconnect (HTTP 403)."
         case .invalidResponse:
             "The server returned an invalid response."
         case let .httpFailure(statusCode):
@@ -109,7 +109,7 @@ struct OutlineClient: Sendable {
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
             if httpResponse.statusCode == 403, url.path == "/api/attachments.redirect" {
-                throw OutlineClientError.missingAttachmentPermission
+                throw OutlineClientError.missingPermission("attachments.redirect")
             }
             networkLogger.error("Asset request failed with HTTP \(httpResponse.statusCode)")
             throw OutlineClientError.httpFailure(statusCode: httpResponse.statusCode)
@@ -166,6 +166,9 @@ struct OutlineClient: Sendable {
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
             networkLogger.error("POST \(path, privacy: .public) failed with HTTP \(httpResponse.statusCode)")
+            if httpResponse.statusCode == 403 {
+                throw OutlineClientError.missingPermission(path)
+            }
             throw OutlineClientError.httpFailure(statusCode: httpResponse.statusCode)
         }
 

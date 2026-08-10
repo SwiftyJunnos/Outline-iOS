@@ -256,6 +256,37 @@ struct OutlineClientTests {
     }
 
     @Test
+    func identifiesMissingEndpointPermission() async throws {
+        URLProtocolStub.handler = { request in
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 403,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: Data())
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example")!,
+            token: "token",
+            session: makeStubSession()
+        )
+
+        do {
+            _ = try await client.listCollections()
+            Issue.record("Expected a permission failure")
+        } catch let error as OutlineClientError {
+            #expect(error == .missingPermission("collections.list"))
+            #expect(
+                error.localizedDescription
+                    == "This API key needs the collections.list permission. Create a new API key with full access or this permission, then reconnect (HTTP 403)."
+            )
+        }
+    }
+
+    @Test
     func loadsRelativeAssetWithSameOriginAuthorization() async throws {
         let capture = RequestCapture()
         URLProtocolStub.handler = { request in
@@ -387,7 +418,7 @@ struct OutlineClientTests {
         } catch {
             #expect(
                 error.localizedDescription
-                    == "The API key needs attachments.redirect permission to load images (HTTP 403)."
+                    == "This API key needs the attachments.redirect permission. Create a new API key with full access or this permission, then reconnect (HTTP 403)."
             )
         }
     }

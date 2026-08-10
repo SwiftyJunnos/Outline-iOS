@@ -78,9 +78,13 @@ final class SessionStore {
         do {
             client = try OutlineClient(baseURL: url, token: trimmedToken)
             collections = try await client.listCollections()
+        } catch let error as OutlineClientError {
+            state = .disconnected
+            errorMessage = error.localizedDescription
+            return
         } catch {
             state = .disconnected
-            errorMessage = "\(error.localizedDescription) Check the server URL, API key, and network, then try again."
+            errorMessage = "Could not connect to the server. Check the server URL and network, then try again."
             return
         }
 

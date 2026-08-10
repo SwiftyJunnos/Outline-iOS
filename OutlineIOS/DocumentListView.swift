@@ -69,11 +69,7 @@ struct DocumentListView: View {
             documentListLogger.error(
                 "Unable to load documents for collection \(collection.id, privacy: .private): \(error.localizedDescription, privacy: .public)"
             )
-            if error as? OutlineClientError == .httpFailure(statusCode: 403) {
-                loadState = .failed("The API key needs collections.documents permission (HTTP 403).")
-            } else {
-                loadState = .failed(error.localizedDescription)
-            }
+            loadState = .failed(error.localizedDescription)
         }
     }
 
