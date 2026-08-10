@@ -383,6 +383,12 @@ private struct ImageBlock: View {
                 .accessibilityHint("Opens a full-screen viewer with zoom and pan controls")
                 .mediaViewerCover(isPresented: $isViewerPresented) {
                     ZoomableMediaViewer(accessibilityName: altText) {
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .blur(radius: 32)
+                            .overlay(.black.opacity(0.2))
+                    } content: {
                         image.resizable().scaledToFit()
                     }
                 }

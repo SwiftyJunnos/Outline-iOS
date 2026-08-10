@@ -1,18 +1,24 @@
 import SwiftUI
 
-struct ZoomableMediaViewer<Content: View>: View {
+struct ZoomableMediaViewer<Content: View, Background: View>: View {
     @Environment(\.dismiss) private var dismiss
 
     private let accessibilityName: String
     private let content: Content
+    private let background: Background
 
     @State private var scale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @GestureState private var magnification: CGFloat = 1
     @GestureState private var translation: CGSize = .zero
 
-    init(accessibilityName: String, @ViewBuilder content: () -> Content) {
+    init(
+        accessibilityName: String,
+        @ViewBuilder background: () -> Background,
+        @ViewBuilder content: () -> Content
+    ) {
         self.accessibilityName = accessibilityName
+        self.background = background()
         self.content = content()
     }
 
@@ -26,7 +32,21 @@ struct ZoomableMediaViewer<Content: View>: View {
             )
 
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.black
+                    .ignoresSafeArea()
+                    .overlay {
+                        background
+                            .frame(
+                                width: geometry.size.width + geometry.safeAreaInsets.leading + geometry.safeAreaInsets.trailing,
+                                height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
+                            )
+                            .offset(
+                                x: (geometry.safeAreaInsets.trailing - geometry.safeAreaInsets.leading) / 2,
+                                y: (geometry.safeAreaInsets.bottom - geometry.safeAreaInsets.top) / 2
+                            )
+                            .clipped()
+                            .ignoresSafeArea()
+                    }
 
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
