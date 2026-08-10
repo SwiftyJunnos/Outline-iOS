@@ -1,11 +1,14 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var store = SessionStore()
+
     var body: some View {
         NavigationStack {
-            Text("Outline")
-                .font(.largeTitle.bold())
-                .navigationTitle("Outline")
+            ConnectionView(store: store)
+        }
+        .task {
+            await store.restore()
         }
     }
 }

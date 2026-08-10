@@ -8,16 +8,47 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* OutlineIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* OutlineIOSApp.swift */; };
 		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
+		A10000000000000000000010 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* SessionStore.swift */; };
+		A10000000000000000000011 /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* ConnectionView.swift */; };
+		A10000000000000000000003 /* Credentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* Credentials.swift */; };
+		A10000000000000000000004 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* KeychainStore.swift */; };
+		B10000000000000000000001 /* OutlineCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* OutlineCollection.swift */; };
+		B10000000000000000000002 /* OutlineClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* OutlineClient.swift */; };
+		B10000000000000000000003 /* OutlineClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* OutlineClientTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B90000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A70000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalID = A50000000000000000000001;
+			remoteInfo = OutlineIOS;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* OutlineIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineIOSApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000010 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* Outline.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Outline.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000004 /* Credentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Credentials.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		B20000000000000000000001 /* OutlineCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineCollection.swift; sourceTree = "<group>"; };
+		B20000000000000000000002 /* OutlineClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineClient.swift; sourceTree = "<group>"; };
+		B20000000000000000000003 /* OutlineClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineClientTests.swift; sourceTree = "<group>"; };
+		B20000000000000000000004 /* OutlineIOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OutlineIOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B30000000000000000000004 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = ();
@@ -30,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				A40000000000000000000002 /* OutlineIOS */,
+				B40000000000000000000002 /* OutlineIOSTests */,
 				A40000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -39,6 +71,10 @@
 			children = (
 				A20000000000000000000001 /* OutlineIOSApp.swift */,
 				A20000000000000000000002 /* ContentView.swift */,
+				A20000000000000000000010 /* SessionStore.swift */,
+				A20000000000000000000011 /* ConnectionView.swift */,
+				A40000000000000000000004 /* Security */,
+				B40000000000000000000001 /* Networking */,
 			);
 			path = OutlineIOS;
 			sourceTree = "<group>";
@@ -47,8 +83,35 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000003 /* Outline.app */,
+				B20000000000000000000004 /* OutlineIOSTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000004 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000004 /* Credentials.swift */,
+				A20000000000000000000005 /* KeychainStore.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		B40000000000000000000001 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000001 /* OutlineCollection.swift */,
+				B20000000000000000000002 /* OutlineClient.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		B40000000000000000000002 /* OutlineIOSTests */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000003 /* OutlineClientTests.swift */,
+			);
+			path = OutlineIOSTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -69,6 +132,23 @@
 			productReference = A20000000000000000000003 /* Outline.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B50000000000000000000002 /* OutlineIOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B60000000000000000000003 /* Build configuration list for PBXNativeTarget "OutlineIOSTests" */;
+			buildPhases = (
+				B30000000000000000000005 /* Sources */,
+				B30000000000000000000004 /* Frameworks */,
+				B30000000000000000000006 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (
+				B91000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = OutlineIOSTests;
+			productName = OutlineIOSTests;
+			productReference = B20000000000000000000004 /* OutlineIOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -80,7 +160,8 @@
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					A50000000000000000000001 = { CreatedOnToolsVersion = 27.0; };
-				};
+					B50000000000000000000002 = { CreatedOnToolsVersion = 27.0; TestTargetID = A50000000000000000000001; };
+			};
 			};
 			buildConfigurationList = A60000000000000000000001 /* Build configuration list for PBXProject "OutlineIOS" */;
 			compatibilityVersion = "Xcode 16.0";
@@ -91,12 +172,18 @@
 			productRefGroup = A40000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (A50000000000000000000001 /* OutlineIOS */);
+			targets = (A50000000000000000000001 /* OutlineIOS */, B50000000000000000000002 /* OutlineIOSTests */);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A30000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B30000000000000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = ();
@@ -111,10 +198,32 @@
 			files = (
 				A10000000000000000000001 /* OutlineIOSApp.swift in Sources */,
 				A10000000000000000000002 /* ContentView.swift in Sources */,
+				A10000000000000000000010 /* SessionStore.swift in Sources */,
+				A10000000000000000000011 /* ConnectionView.swift in Sources */,
+				A10000000000000000000003 /* Credentials.swift in Sources */,
+				A10000000000000000000004 /* KeychainStore.swift in Sources */,
+				B10000000000000000000001 /* OutlineCollection.swift in Sources */,
+				B10000000000000000000002 /* OutlineClient.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B30000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000003 /* OutlineClientTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B91000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A50000000000000000000001 /* OutlineIOS */;
+			targetProxy = B90000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A80000000000000000000001 /* Debug */ = {
@@ -195,6 +304,44 @@
 			};
 			name = Release;
 		};
+		B80000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = house.junnos.outlineiosTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Outline.app/Outline";
+			};
+			name = Debug;
+		};
+		B80000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = house.junnos.outlineiosTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Outline.app/Outline";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -207,6 +354,12 @@
 		A60000000000000000000002 /* Build configuration list for PBXNativeTarget "OutlineIOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (A80000000000000000000003 /* Debug */, A80000000000000000000004 /* Release */);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B60000000000000000000003 /* Build configuration list for PBXNativeTarget "OutlineIOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (B80000000000000000000005 /* Debug */, B80000000000000000000006 /* Release */);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
