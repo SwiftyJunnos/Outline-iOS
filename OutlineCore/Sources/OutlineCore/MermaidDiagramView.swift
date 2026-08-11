@@ -175,93 +175,54 @@ private struct MermaidWebView {
         coordinator.signature = signature
 
         do {
-            webView.loadHTMLString(
-                try Self.html(source: source, darkMode: darkMode, allowsZoom: allowsZoom),
-                baseURL: nil
+            coordinator.renderScript = try Self.renderScript(
+                source: source,
+                darkMode: darkMode,
+                allowsZoom: allowsZoom
             )
+            let page = try Self.pageURL()
+            webView.loadFileURL(page.url, allowingReadAccessTo: page.readAccessURL)
         } catch {
             onError(error.localizedDescription)
         }
     }
 
-    private static func html(source: String, darkMode: Bool, allowsZoom: Bool) throws -> String {
+    private static func pageURL() throws -> (url: URL, readAccessURL: URL) {
         guard
-            let scriptURL = Bundle.module.url(
+            let rendererURL = Bundle.module.url(
+                forResource: "mermaid-renderer",
+                withExtension: "html"
+            ),
+            Bundle.module.url(
                 forResource: "mermaid-11.12.0.min",
                 withExtension: "js"
-            )
+            ) != nil
         else {
             throw MermaidError.missingRuntime
         }
+        return (rendererURL, rendererURL.deletingLastPathComponent())
+    }
 
-        let script = try String(contentsOf: scriptURL, encoding: .utf8)
-        let encodedSource = Data(source.utf8).base64EncodedString()
-        let theme = darkMode ? "dark" : "default"
-        let background = darkMode ? "#000000" : "#ffffff"
-        let viewport = allowsZoom
-            ? "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=8, user-scalable=yes"
-            : "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-        let overflow = allowsZoom ? "auto" : "hidden"
-        let diagramCSS = allowsZoom
-            ? """
-              #diagram { display: flex; justify-content: center; align-items: center; min-height: 100vh; width: 100%; padding: 16px; box-sizing: border-box; }
-              #diagram svg { display: block; max-width: none !important; width: auto !important; height: auto !important; }
-              """
-            : """
-              #diagram { display: flex; justify-content: center; width: 100%; }
-              #diagram svg { display: block; width: 100%; height: auto; max-width: 100%; }
-              """
-
-        return """
-        <!doctype html>
-        <html>
-        <head>
-          <meta name="viewport" content="\(viewport)">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:">
-          <style>
-            html, body { margin: 0; padding: 0; background: \(background); overflow: \(overflow); scrollbar-width: none; \(allowsZoom ? "min-height: 100vh;" : "") }
-            html::-webkit-scrollbar, body::-webkit-scrollbar, #diagram::-webkit-scrollbar { display: none; }
-            \(diagramCSS)
-          </style>
-        </head>
-        <body>
-          <div id="diagram" role="img" aria-label="Mermaid diagram"></div>
-          <script>\(script)</script>
-          <script>
-            const bytes = Uint8Array.from(atob('\(encodedSource)'), c => c.charCodeAt(0));
-            const source = new TextDecoder().decode(bytes);
-            const diagram = document.getElementById('diagram');
-            const reportHeight = () => {
-              const height = Math.ceil(diagram.getBoundingClientRect().height);
-              window.webkit.messageHandlers.mermaid.postMessage({ height });
-            };
-            (async () => {
-              try {
-                mermaid.initialize({
-                  startOnLoad: false,
-                  securityLevel: 'strict',
-                  suppressErrorRendering: true,
-                  theme: '\(theme)'
-                });
-                const result = await mermaid.render('mermaid-diagram', source);
-                diagram.innerHTML = result.svg;
-                result.bindFunctions?.(diagram);
-                new ResizeObserver(reportHeight).observe(diagram);
-                requestAnimationFrame(reportHeight);
-              } catch (error) {
-                window.webkit.messageHandlers.mermaid.postMessage({
-                  error: error instanceof Error ? error.message : String(error)
-                });
-              }
-            })();
-          </script>
-        </body>
-        </html>
-        """
+    private static func renderScript(
+        source: String,
+        darkMode: Bool,
+        allowsZoom: Bool
+    ) throws -> String {
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "source": source,
+            "darkMode": darkMode,
+            "allowsZoom": allowsZoom,
+        ])
+        guard let json = String(data: payload, encoding: .utf8) else {
+            throw MermaidError.missingRuntime
+        }
+        return "void window.renderMermaid(\(json)); true"
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         var signature: String?
+        var lastHeight: CGFloat?
+        var renderScript: String?
         var onHeightChange: (CGFloat) -> Void
         var onError: (String) -> Void
 
@@ -281,7 +242,19 @@ private struct MermaidWebView {
             if let error = payload["error"] as? String {
                 onError(error)
             } else if let height = payload["height"] as? NSNumber {
-                onHeightChange(CGFloat(truncating: height))
+                let height = CGFloat(truncating: height)
+                guard height != lastHeight else { return }
+                lastHeight = height
+                onHeightChange(height)
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
+            guard let renderScript else { return }
+            webView.evaluateJavaScript(renderScript) { [weak self] _, error in
+                if let error {
+                    self?.onError(error.localizedDescription)
+                }
             }
         }
 
@@ -289,7 +262,8 @@ private struct MermaidWebView {
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction
         ) async -> WKNavigationActionPolicy {
-            navigationAction.request.url?.scheme == "about" ? .allow : .cancel
+            guard let url = navigationAction.request.url else { return .cancel }
+            return url.scheme == "about" || url.isFileURL ? .allow : .cancel
         }
     }
 

@@ -772,7 +772,7 @@ private struct ImageBlock: View {
         errorMessage = nil
         do {
             let loadedData = try await assetLoader(source)
-            guard let loadedImage = platformImage(data: loadedData) else {
+            guard let loadedImage = try await platformImage(data: loadedData) else {
                 errorMessage = "The image format is not supported."
                 return
             }
@@ -943,10 +943,17 @@ private func plainText(_ parent: ProseMirrorNode) -> String {
     return parent.content.map(plainText).joined()
 }
 
-private func platformImage(data: Data) -> Image? {
+private func platformImage(data: Data) async throws -> Image? {
+    try Task.checkCancellation()
     #if canImport(UIKit)
-    guard let image = UIImage(data: data) else { return nil }
-    return Image(uiImage: image)
+    guard
+        let image = UIImage(data: data),
+        let preparedImage = await image.byPreparingForDisplay()
+    else {
+        return nil
+    }
+    try Task.checkCancellation()
+    return Image(uiImage: preparedImage)
     #elseif canImport(AppKit)
     guard let image = NSImage(data: data) else { return nil }
     return Image(nsImage: image)

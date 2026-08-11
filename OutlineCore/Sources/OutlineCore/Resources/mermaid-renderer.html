@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=8, user-scalable=yes">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:">
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; scrollbar-width: none; }
+    html::-webkit-scrollbar, body::-webkit-scrollbar, #diagram::-webkit-scrollbar { display: none; }
+    #diagram { display: flex; justify-content: center; width: 100%; }
+    #diagram svg { display: block; width: 100%; height: auto; max-width: 100%; }
+    body.zoom { min-height: 100vh; overflow: auto; }
+    body.zoom #diagram { align-items: center; min-height: 100vh; padding: 16px; box-sizing: border-box; }
+    body.zoom #diagram svg { max-width: none !important; width: auto !important; height: auto !important; }
+  </style>
+</head>
+<body>
+  <div id="diagram" role="img" aria-label="Mermaid diagram"></div>
+  <script src="mermaid-11.12.0.min.js"></script>
+  <script>
+    window.renderMermaid = async options => {
+      const diagram = document.getElementById('diagram');
+      const background = options.darkMode ? '#000000' : '#ffffff';
+      document.documentElement.style.background = background;
+      document.body.style.background = background;
+      document.body.classList.toggle('zoom', options.allowsZoom);
+
+      let lastHeight = 0;
+      const reportHeight = () => {
+        const height = Math.ceil(diagram.getBoundingClientRect().height);
+        if (height === lastHeight) return;
+        lastHeight = height;
+        window.webkit.messageHandlers.mermaid.postMessage({ height });
+      };
+
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          suppressErrorRendering: true,
+          theme: options.darkMode ? 'dark' : 'default'
+        });
+        const result = await mermaid.render('mermaid-diagram', options.source);
+        diagram.innerHTML = result.svg;
+        result.bindFunctions?.(diagram);
+        new ResizeObserver(reportHeight).observe(diagram);
+        requestAnimationFrame(reportHeight);
+      } catch (error) {
+        window.webkit.messageHandlers.mermaid.postMessage({
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    };
+  </script>
+</body>
+</html>
