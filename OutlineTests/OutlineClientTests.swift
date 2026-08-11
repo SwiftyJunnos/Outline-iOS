@@ -139,6 +139,106 @@ struct OutlineClientTests {
     }
 
     @Test
+    func loadsAllCommentPagesAndDecodesNestedData() async throws {
+        let capture = RequestCapture()
+        URLProtocolStub.handler = { request in
+            capture.store(request)
+            let offset = capture.count == 1 ? 0 : 100
+            let count = offset == 0 ? 100 : 1
+            let items = (offset..<(offset + count)).map { index in
+                [
+                    "id": "comment-\(index)",
+                    "data": [
+                        "type": "doc",
+                        "content": [[
+                            "type": "paragraph",
+                            "content": [["type": "text", "text": "Comment \(index)"]]
+                        ]]
+                    ],
+                    "createdBy": ["name": "Author \(index)"],
+                    "createdAt": "2026-08-11T00:00:00.000Z",
+                    "resolvedAt": NSNull()
+                ] as [String: Any]
+            }
+            let body = try JSONSerialization.data(withJSONObject: [
+                "pagination": ["total": 101],
+                "data": items
+            ])
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: body)
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example")!,
+            token: "token",
+            session: makeStubSession()
+        )
+
+        let comments = try await client.comments(in: "document-id")
+
+        #expect(comments.count == 101)
+        #expect(comments.first?.createdBy.name == "Author 0")
+        #expect(comments.first?.data.content.first?.content.first?.text == "Comment 0")
+        #expect(capture.count == 2)
+        let request = try #require(capture.value)
+        #expect(request.url?.lastPathComponent == "comments.list")
+        let body = try #require(capture.body)
+        let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["documentId"] as? String == "document-id")
+        #expect(json["sort"] as? String == "createdAt")
+        #expect(json["direction"] as? String == "ASC")
+        #expect(json["limit"] as? Int == 100)
+        #expect(json["offset"] as? Int == 100)
+    }
+
+    @Test
+    func createsCommentWithProseMirrorData() async throws {
+        let capture = RequestCapture()
+        URLProtocolStub.handler = { request in
+            capture.store(request)
+            let body = #"{"data":{"id":"comment-id","data":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hello"}]}]},"createdBy":{"name":"Author"},"createdAt":"2026-08-11T00:00:00.000Z","resolvedAt":null}}"#
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return StubResult(response: response, data: Data(body.utf8))
+        }
+        defer { URLProtocolStub.handler = nil }
+
+        let client = try OutlineClient(
+            baseURL: URL(string: "https://outline.example")!,
+            token: "token",
+            session: makeStubSession()
+        )
+
+        let comment = try await client.createComment(in: "document-id", text: "Hello")
+
+        #expect(comment.id == "comment-id")
+        let request = try #require(capture.value)
+        #expect(request.url?.lastPathComponent == "comments.create")
+        let body = try #require(capture.body)
+        let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["documentId"] as? String == "document-id")
+        #expect(json["text"] == nil)
+        let data = try #require(json["data"] as? [String: Any])
+        #expect(data["type"] as? String == "doc")
+        let content = try #require(data["content"] as? [[String: Any]])
+        let paragraph = try #require(content.first)
+        #expect(paragraph["type"] as? String == "paragraph")
+        let textContent = try #require(paragraph["content"] as? [[String: Any]])
+        #expect(textContent.first?["type"] as? String == "text")
+        #expect(textContent.first?["text"] as? String == "Hello")
+    }
+
+    @Test
     func diagnosesMissingCollectionDocumentsPermissionBeforeConnecting() async throws {
         let capture = RequestCapture()
         URLProtocolStub.handler = { request in

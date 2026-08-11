@@ -167,6 +167,46 @@ struct OutlineClient: Sendable {
         return response.data.document
     }
 
+    func comments(in documentID: String) async throws -> [OutlineComment] {
+        var comments: [OutlineComment] = []
+        var offset = 0
+        while true {
+            let response: CommentsResponse = try await post(
+                "comments.list",
+                body: CommentsRequest(
+                    documentId: documentID,
+                    sort: "createdAt",
+                    direction: "ASC",
+                    offset: offset,
+                    limit: Self.pageSize
+                )
+            )
+            comments.append(contentsOf: response.data)
+            guard shouldLoadNextPage(
+                response.pagination,
+                loaded: comments.count,
+                pageCount: response.data.count
+            ) else {
+                return comments
+            }
+            offset = comments.count
+        }
+    }
+
+    func createComment(in documentID: String, text: String) async throws -> OutlineComment {
+        let paragraph = ProseMirrorNode(
+            type: "paragraph",
+            content: [ProseMirrorNode(type: "text", text: text)]
+        )
+        let data = ProseMirrorNode(type: "doc", content: [paragraph])
+        let response: CommentResponse = try await post(
+            "comments.create",
+            body: CreateCommentRequest(documentId: documentID, data: data)
+        )
+        return response.data
+    }
+
+
     func assetData(for source: String) async throws -> Data {
         guard
             let url = URL(string: source, relativeTo: baseURL)?.absoluteURL,
@@ -358,6 +398,19 @@ struct OutlineClient: Sendable {
         let limit: Int
     }
 
+    private struct CommentsRequest: Encodable {
+        let documentId: String
+        let sort: String
+        let direction: String
+        let offset: Int
+        let limit: Int
+    }
+
+    private struct CreateCommentRequest: Encodable {
+        let documentId: String
+        let data: ProseMirrorNode
+    }
+
     private struct CollectionDocumentsRequest: Encodable {
         let id: String
     }
@@ -396,5 +449,14 @@ struct OutlineClient: Sendable {
     private struct SearchResponse: Decodable {
         let data: [OutlineSearchResult]
         let pagination: Pagination?
+    }
+
+    private struct CommentsResponse: Decodable {
+        let data: [OutlineComment]
+        let pagination: Pagination?
+    }
+
+    private struct CommentResponse: Decodable {
+        let data: OutlineComment
     }
 }

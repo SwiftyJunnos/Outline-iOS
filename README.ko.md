@@ -21,7 +21,7 @@ Outline: <https://www.getoutline.com>
 
 ## 빌드
 
-1. Xcode로 `OutlineIOS.xcodeproj`를 엽니다.
+1. Xcode로 `Outline.xcodeproj`를 엽니다.
 2. 원하는 시뮬레이터 또는 기기를 선택합니다.
 3. `Cmd + R`로 빌드·실행합니다.
 

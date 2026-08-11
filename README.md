@@ -21,7 +21,7 @@ Screenshots are placeholders — replace them with actual device captures later.
 
 ## Build
 
-1. Open `OutlineIOS.xcodeproj` in Xcode.
+1. Open `Outline.xcodeproj` in Xcode.
 2. Select a simulator or device.
 3. Build and run with `Cmd + R`.
 

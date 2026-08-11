@@ -34,7 +34,7 @@ struct KeychainStore {
     private static let account = "credentials"
 
     private var service: String {
-        Bundle.main.bundleIdentifier ?? "OutlineIOS"
+        Bundle.main.bundleIdentifier ?? "Outline"
     }
 
     func load() throws -> Credentials? {

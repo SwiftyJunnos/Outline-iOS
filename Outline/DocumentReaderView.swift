@@ -12,6 +12,7 @@ struct DocumentReaderView: View {
     @State private var linkTarget: DocumentLinkTarget?
     @State private var scrollTarget: String?
     @State private var scrollRequest = 0
+    @State private var isShowingComments = false
 
     init(
         store: SessionStore,
@@ -87,7 +88,26 @@ struct DocumentReaderView: View {
                 secondaryButton: .cancel()
             )
         }
+        .sheet(isPresented: $isShowingComments) {
+            CommentsView(
+                store: store,
+                documentID: documentID,
+                documentURL: store.webURL(for: documentPath)
+            )
+            .presentationDetents([.medium, .large])
+        }
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isShowingComments = true
+                } label: {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+                .accessibilityLabel("Comments")
+                .accessibilityHint("Shows comments for this document")
+            }
             if let webURL = store.webURL(for: documentPath) {
                 ToolbarItem(placement: .topBarTrailing) {
                     Link(destination: webURL) {

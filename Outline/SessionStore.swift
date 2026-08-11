@@ -194,6 +194,22 @@ final class SessionStore {
         return try await client.document(id: id)
     }
 
+    func comments(in documentID: String) async throws -> [OutlineComment] {
+        guard let client else {
+            throw OutlineClientError.requestFailed
+        }
+
+        return try await client.comments(in: documentID)
+    }
+
+    func createComment(in documentID: String, text: String) async throws -> OutlineComment {
+        guard let client else {
+            throw OutlineClientError.requestFailed
+        }
+
+        return try await client.createComment(in: documentID, text: text)
+    }
+
     func assetData(for source: String) async throws -> Data {
         guard let client else {
             throw OutlineClientError.requestFailed
