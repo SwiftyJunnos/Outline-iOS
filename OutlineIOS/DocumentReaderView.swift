@@ -8,6 +8,7 @@ struct DocumentReaderView: View {
 
     @State private var loadState = LoadState.loading
     @State private var loadRequest = 0
+    @State private var errorAlert: DocumentReaderAlert?
     @State private var linkTarget: DocumentLinkTarget?
     @State private var scrollTarget: String?
     @State private var scrollRequest = 0
@@ -36,19 +37,31 @@ struct DocumentReaderView: View {
                     store: store,
                     scrollTarget: scrollTarget,
                     scrollRequest: scrollRequest,
+                    errorAlert: $errorAlert,
                     onOpenURL: openURL,
-                    onRefresh: { await loadDocument(showLoading: false) }
+                    onRefresh: {
+                        await loadDocument(showLoading: false)
+                    },
+                    onAssetError: { notice in
+                        guard notice.recovery == .reconnect else { return }
+                        errorAlert = DocumentReaderAlert(title: "Unable to load media", notice: notice)
+                    }
                 )
-            case let .failed(message):
+            case let .failed(notice):
                 ContentUnavailableView {
                     Label("Unable to load document", systemImage: "exclamationmark.circle")
                 } description: {
-                    Text(message)
+                    Text(notice.message)
                 } actions: {
-                    Button("Try again") {
-                        loadRequest += 1
+                    if notice.recovery == .reconnect {
+                        Button("Reconnect", action: store.disconnect)
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("Try again") {
+                            loadRequest += 1
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .buttonStyle(.borderedProminent)
                 }
             }
         }
@@ -62,7 +75,17 @@ struct DocumentReaderView: View {
             )
         }
         .task(id: loadRequest) {
-            await loadDocument()
+            _ = await loadDocument()
+        }
+        .alert(item: $errorAlert) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.notice.message),
+                primaryButton: alert.notice.recovery == .reconnect
+                    ? .destructive(Text("Reconnect"), action: store.disconnect)
+                    : .default(Text("Try again"), action: retryRefresh),
+                secondaryButton: .cancel()
+            )
         }
         .toolbar {
             if let webURL = store.webURL(for: documentPath) {
@@ -95,24 +118,47 @@ struct DocumentReaderView: View {
         return .handled
     }
 
-    private func loadDocument(showLoading: Bool = true) async {
+    private func loadDocument(showLoading: Bool = true) async -> SessionErrorNotice? {
         if showLoading {
             loadState = .loading
         }
 
         do {
             loadState = .loaded(try await store.document(id: documentID))
+            return nil
         } catch is CancellationError {
-            return
+            return nil
         } catch {
-            loadState = .failed(error.localizedDescription)
+            let notice = SessionErrorNotice(error: error)
+            if showLoading {
+                loadState = .failed(notice)
+            }
+            return notice
+        }
+    }
+
+    private func retryRefresh() {
+        Task { @MainActor in
+            if let notice = await loadDocument(showLoading: false) {
+                errorAlert = DocumentReaderAlert(title: "Unable to refresh", notice: notice)
+            }
         }
     }
 
     private enum LoadState {
         case loading
         case loaded(OutlineRichDocument)
-        case failed(String)
+        case failed(SessionErrorNotice)
+    }
+
+}
+
+private struct DocumentReaderAlert: Identifiable {
+    let title: String
+    let notice: SessionErrorNotice
+
+    var id: String {
+        "\(title):\(notice.id)"
     }
 }
 
@@ -121,8 +167,10 @@ private struct DocumentContent: View {
     let store: SessionStore
     let scrollTarget: String?
     let scrollRequest: Int
+    @Binding var errorAlert: DocumentReaderAlert?
     let onOpenURL: (URL) -> OpenURLAction.Result
-    let onRefresh: @MainActor @Sendable () async -> Void
+    let onRefresh: @MainActor @Sendable () async -> SessionErrorNotice?
+    let onAssetError: @MainActor @Sendable (SessionErrorNotice) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -136,7 +184,12 @@ private struct DocumentContent: View {
                         document: document,
                         baseURL: store.webURL(for: document.url),
                         assetLoader: { source in
-                            try await store.assetData(for: source)
+                            do {
+                                return try await store.assetData(for: source)
+                            } catch {
+                                await onAssetError(SessionErrorNotice(error: error))
+                                throw error
+                            }
                         }
                     )
                 }
@@ -144,7 +197,11 @@ private struct DocumentContent: View {
                 .padding()
                 .frame(maxWidth: .infinity)
             }
-            .refreshable(action: onRefresh)
+            .refreshable {
+                if let notice = await onRefresh() {
+                    errorAlert = DocumentReaderAlert(title: "Unable to refresh", notice: notice)
+                }
+            }
             .task(id: scrollRequest) {
                 guard let scrollTarget else { return }
                 await Task.yield()

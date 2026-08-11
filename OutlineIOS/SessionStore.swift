@@ -2,6 +2,42 @@ import OutlineCore
 import Foundation
 import Observation
 
+enum SessionErrorRecovery: Equatable, Sendable {
+    case reconnect
+    case retry
+
+    init(error: Error) {
+        guard let error = error as? OutlineClientError else {
+            self = .retry
+            return
+        }
+
+        switch error {
+        case .missingPermission:
+            self = .reconnect
+        case let .httpFailure(statusCode) where statusCode == 401 || statusCode == 403:
+            self = .reconnect
+        default:
+            self = .retry
+        }
+    }
+}
+
+struct SessionErrorNotice: Equatable, Identifiable, Sendable {
+    let message: String
+    let recovery: SessionErrorRecovery
+
+    init(error: Error) {
+        message = error.localizedDescription
+        recovery = SessionErrorRecovery(error: error)
+    }
+
+    var id: String {
+        message
+    }
+}
+
+
 @MainActor
 @Observable
 final class SessionStore {
@@ -23,6 +59,14 @@ final class SessionStore {
 
     var isConnecting: Bool {
         if case .connecting = state {
+            true
+        } else {
+            false
+        }
+    }
+
+    var isConnected: Bool {
+        if case .connected = state {
             true
         } else {
             false
@@ -107,21 +151,22 @@ final class SessionStore {
         }
     }
 
-    func refreshCollections() async {
+    func refreshCollections() async -> SessionErrorNotice? {
         guard
             case let .connected(serverURL, _) = state,
             let client
         else {
-            return
+            return nil
         }
 
         do {
             state = .connected(serverURL: serverURL, collections: try await client.listCollections())
             errorMessage = nil
+            return nil
         } catch is CancellationError {
-            return
+            return nil
         } catch {
-            errorMessage = error.localizedDescription
+            return SessionErrorNotice(error: error)
         }
     }
 

@@ -6,6 +6,7 @@ struct ConnectionView: View {
     @State private var serverURL = ""
     @State private var apiKey = ""
     @FocusState private var focusedField: Field?
+    @State private var refreshError: SessionErrorNotice?
 
     private enum Field {
         case serverURL
@@ -23,7 +24,17 @@ struct ConnectionView: View {
         }
         .navigationTitle("Outline")
         .refreshable {
-            await store.refreshCollections()
+            refreshError = await store.refreshCollections()
+        }
+        .alert(item: $refreshError) { notice in
+            Alert(
+                title: Text("Unable to refresh"),
+                message: Text(notice.message),
+                primaryButton: notice.recovery == .reconnect
+                    ? .destructive(Text("Reconnect"), action: store.disconnect)
+                    : .default(Text("Try again"), action: retryRefresh),
+                secondaryButton: .cancel()
+            )
         }
     }
 
@@ -38,7 +49,6 @@ struct ConnectionView: View {
                     .submitLabel(.next)
                     .focused($focusedField, equals: .serverURL)
                     .onSubmit { focusedField = .apiKey }
-                    .accessibilityLabel("Server URL")
             }
 
             LabeledContent("API key") {
@@ -48,7 +58,6 @@ struct ConnectionView: View {
                     .submitLabel(.go)
                     .focused($focusedField, equals: .apiKey)
                     .onSubmit(connect)
-                    .accessibilityLabel("API key")
             }
 
             Text("Connection checks collection, search, and available document access. Protected images also require attachments.redirect.")
@@ -64,6 +73,7 @@ struct ConnectionView: View {
                 if store.isConnecting {
                     HStack {
                         ProgressView()
+                            .accessibilityHidden(true)
                         Text("Connecting…")
                     }
                 } else {
@@ -72,6 +82,7 @@ struct ConnectionView: View {
             }
             .disabled(store.isConnecting)
             .accessibilityLabel(store.isConnecting ? "Connecting" : "Connect")
+            .accessibilityValue(store.isConnecting ? "In progress" : "")
         }
     }
 
@@ -119,10 +130,23 @@ struct ConnectionView: View {
     private var errorContent: some View {
         if let errorMessage = store.errorMessage {
             Section {
-                Label(errorMessage, systemImage: "exclamationmark.circle")
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Error. \(errorMessage)")
+                Label {
+                    Text(errorMessage)
+                } icon: {
+                    Image(systemName: "exclamationmark.circle")
+                        .accessibilityHidden(true)
+                }
+                .foregroundStyle(.red)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Error")
+                .accessibilityValue(errorMessage)
             }
+        }
+    }
+
+    private func retryRefresh() {
+        Task { @MainActor in
+            refreshError = await store.refreshCollections()
         }
     }
 
@@ -175,14 +199,19 @@ private struct DocumentSearchView: View {
                         }
                     }
                 }
-            case let .failed(message):
+            case let .failed(notice):
                 ContentUnavailableView {
                     Label("Unable to search documents", systemImage: "exclamationmark.circle")
                 } description: {
-                    Text(message)
+                    Text(notice.message)
                 } actions: {
-                    Button("Try again") { request += 1 }
-                        .buttonStyle(.borderedProminent)
+                    if notice.recovery == .reconnect {
+                        Button("Reconnect", action: store.disconnect)
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("Try again") { request += 1 }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
             }
         }
@@ -198,7 +227,7 @@ private struct DocumentSearchView: View {
             } catch is CancellationError {
                 return
             } catch {
-                state = .failed(error.localizedDescription)
+                state = .failed(SessionErrorNotice(error: error))
             }
         }
     }
@@ -218,6 +247,6 @@ private struct DocumentSearchView: View {
         case idle
         case loading
         case loaded([OutlineSearchResult])
-        case failed(String)
+        case failed(SessionErrorNotice)
     }
 }

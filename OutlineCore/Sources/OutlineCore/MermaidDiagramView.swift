@@ -24,37 +24,54 @@ struct MermaidDiagramView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Unable to render Mermaid diagram", systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     Text(errorMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     ScrollView(.horizontal) {
                         Text(source)
                             .font(.body.monospaced())
                             .textSelection(.enabled)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Mermaid source")
+                            .accessibilityValue(source)
                     }
+                    .accessibilityHint("Swipe horizontally to view the full Mermaid source")
                 }
                 .padding(12)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Mermaid diagram failed to render")
+                .accessibilityValue(errorMessage)
+                .accessibilityHint("The Mermaid source is shown below.")
             } else if allowsFullScreen, renderedSignature == renderSignature {
-                diagram
-                    .overlay {
-                        Button {
-                            isFullScreenPresented = true
-                        } label: {
-                            Color.clear
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Open Mermaid diagram in full screen")
-                        .accessibilityHint("Opens zoom and pan controls")
+                ZStack {
+                    diagram
+                        .accessibilityHidden(true)
+                    Button {
+                        isFullScreenPresented = true
+                    } label: {
+                        Color.clear
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
                     }
-                    .mediaViewerCover(isPresented: $isFullScreenPresented) {
-                        MermaidFullScreenView(source: source)
-                    }
+                    .buttonStyle(.plain)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Open Mermaid diagram in full screen")
+                    .accessibilityValue("Ready")
+                    .accessibilityHint("Opens zoom and pan controls.")
+                }
+                .mediaViewerCover(isPresented: $isFullScreenPresented) {
+                    MermaidFullScreenView(source: source)
+                }
             } else {
                 diagram
+                    .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Mermaid diagram")
+                    .accessibilityAddTraits(.isImage)
+                    .accessibilityHint("Mermaid diagram. Wait for rendering to finish.")
             }
         }
     }
@@ -98,6 +115,10 @@ private struct MermaidFullScreenView: View {
                 Text(errorMessage)
                     .foregroundStyle(.primary)
                     .padding()
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Mermaid diagram failed to render")
+                    .accessibilityValue(errorMessage)
+                    .accessibilityHint("Close the viewer to return to the document.")
             } else {
                 MermaidWebView(
                     source: source,
@@ -107,6 +128,10 @@ private struct MermaidFullScreenView: View {
                     onError: { errorMessage = $0 }
                 )
                 .ignoresSafeArea()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Mermaid diagram")
+                .accessibilityAddTraits(.isImage)
+                .accessibilityHint("Use zoom controls or pinch to zoom, then drag to pan.")
             }
 
             Button {
@@ -119,7 +144,9 @@ private struct MermaidFullScreenView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
             .background(.thinMaterial, in: Circle())
-            .accessibilityLabel("Close viewer")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Close Mermaid viewer")
+            .accessibilityHint("Closes the full-screen Mermaid diagram.")
             .padding()
         }
     }

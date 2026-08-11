@@ -9,6 +9,7 @@ struct DocumentListView: View {
 
     @State private var loadState = LoadState.loading
     @State private var loadRequest = 0
+    @State private var refreshError: SessionErrorNotice?
 
     var body: some View {
         Group {
@@ -38,48 +39,74 @@ struct DocumentListView: View {
                         }
                     }
                 }
-            case let .failed(message):
+            case let .failed(notice):
                 ContentUnavailableView {
                     Label("Unable to load documents", systemImage: "exclamationmark.circle")
                 } description: {
-                    Text(message)
+                    Text(notice.message)
                 } actions: {
-                    Button("Try again") {
-                        loadRequest += 1
+                    if notice.recovery == .reconnect {
+                        Button("Reconnect", action: store.disconnect)
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("Try again") {
+                            loadRequest += 1
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .buttonStyle(.borderedProminent)
                 }
             }
         }
         .navigationTitle(collection.name)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: loadRequest) {
-            await loadDocuments()
+            _ = await loadDocuments()
         }
         .refreshable {
-            await loadDocuments(showLoading: false)
+            refreshError = await loadDocuments(showLoading: false)
+        }
+        .alert(item: $refreshError) { notice in
+            Alert(
+                title: Text("Unable to refresh"),
+                message: Text(notice.message),
+                primaryButton: notice.recovery == .reconnect
+                    ? .destructive(Text("Reconnect"), action: store.disconnect)
+                    : .default(Text("Try again"), action: retryRefresh),
+                secondaryButton: .cancel()
+            )
         }
     }
 
-    private func loadDocuments(showLoading: Bool = true) async {
+    private func loadDocuments(showLoading: Bool = true) async -> SessionErrorNotice? {
         if showLoading {
             loadState = .loading
         }
         do {
             loadState = .loaded(try await store.documents(in: collection.id))
+            return nil
         } catch is CancellationError {
-            return
+            return nil
         } catch {
             documentListLogger.error(
                 "Unable to load documents for collection \(collection.id, privacy: .private): \(error.localizedDescription, privacy: .public)"
             )
-            loadState = .failed(error.localizedDescription)
+            let notice = SessionErrorNotice(error: error)
+            if showLoading {
+                loadState = .failed(notice)
+            }
+            return notice
+        }
+    }
+
+    private func retryRefresh() {
+        Task { @MainActor in
+            refreshError = await loadDocuments(showLoading: false)
         }
     }
 
     private enum LoadState {
         case loading
         case loaded([OutlineDocumentNode])
-        case failed(String)
+        case failed(SessionErrorNotice)
     }
 }

@@ -46,6 +46,14 @@ func inlineAtomsHaveReadableFallbacks() {
 }
 
 @Test
+func resolvesStableAccessibilityFallbackText() {
+    #expect(resolvedAccessibilityText(nil, fallback: "Image") == "Image")
+    #expect(resolvedAccessibilityText("   ", fallback: "Image") == "Image")
+    #expect(resolvedAccessibilityText("  Diagram  ", fallback: "Image") == "Diagram")
+    #expect(resolvedAccessibilityText(nil, fallback: "Embedded content") == "Embedded content")
+}
+
+@Test
 func decodesOutlineTableContract() throws {
     let data = Data("""
     {

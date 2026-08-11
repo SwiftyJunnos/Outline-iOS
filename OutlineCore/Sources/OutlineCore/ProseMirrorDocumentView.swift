@@ -154,7 +154,12 @@ private struct ProseMirrorBlock: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(marker(for: item, index: index, ordered: ordered))
                         .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
+                        .accessibilityHidden(node.type != "checkbox_list")
+                        .accessibilityLabel(
+                            node.type == "checkbox_list"
+                                ? (item.boolAttribute("checked") == true ? "Checked" : "Unchecked")
+                                : ""
+                        )
                     anchoredBlock(
                         node: item,
                         baseURL: baseURL,
@@ -291,7 +296,12 @@ private struct CodeBlockView: View {
                 Text(highlightedCode(plainText(node), language: node.stringAttribute("language")))
                     .font(.body.monospaced())
                     .padding(12)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Code block")
+                    .accessibilityValue(plainText(node))
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityHint("Swipe horizontally to view the full code")
         }
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
@@ -404,10 +414,10 @@ private struct TableBlock: View {
                     }
                 }
             }
-            .overlay { Rectangle().stroke(.quaternary) }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Table")
+        .accessibilityHint("Swipe horizontally to view all columns")
     }
 
     private func cellView(_ cell: ProseMirrorNode, rowIndex: Int, cellIndex: Int) -> some View {
@@ -423,7 +433,25 @@ private struct TableBlock: View {
             .padding(10)
             .background(cell.type == "th" ? Color.secondary.opacity(0.12) : .clear)
             .overlay { Rectangle().stroke(Color.secondary.opacity(0.25), lineWidth: 0.5) }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(cellAccessibilityLabel(cell, rowIndex: rowIndex, cellIndex: cellIndex))
             .accessibilityAddTraits(cell.type == "th" ? .isHeader : [])
+    }
+
+    private func cellAccessibilityLabel(
+        _ cell: ProseMirrorNode,
+        rowIndex: Int,
+        cellIndex: Int
+    ) -> String {
+        let context = "\(cell.type == "th" ? "Header" : "Cell"), row \(rowIndex + 1), column \(cellIndex + 1)"
+        guard cell.type != "th",
+              let headerRow = node.content.first,
+              headerRow.content.indices.contains(cellIndex),
+              headerRow.content[cellIndex].type == "th" else {
+            return context
+        }
+        let header = plainText(headerRow.content[cellIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return header.isEmpty ? context : "\(context), under \(header)"
     }
 
     private func alignment(_ cell: ProseMirrorNode) -> Alignment {
@@ -535,10 +563,24 @@ private struct DownloadableMediaBlock: View {
                         card
                     }
                     .disabled(isLoading)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(actionLabel)
+                    .accessibilityValue(accessibilityState)
+                    .accessibilityHint(actionHint)
                 } else if let url = resolvedSafeURL(source, baseURL: baseURL) {
-                    Link(destination: url) { card }
+                    Link(destination: url) {
+                        card
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(actionLabel)
+                    .accessibilityValue(accessibilityState)
+                    .accessibilityHint(actionHint)
                 } else {
                     card
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(title)
+                        .accessibilityValue("Unavailable")
+                        .accessibilityHint("This item is unavailable.")
                 }
             }
             .buttonStyle(.plain)
@@ -547,6 +589,7 @@ private struct DownloadableMediaBlock: View {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("Download failed: \(errorMessage)")
             }
         }
         .quickLookPreview($previewURL)
@@ -565,19 +608,37 @@ private struct DownloadableMediaBlock: View {
     }
 
     private var title: String {
-        let title = node.stringAttribute("title")?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return title?.isEmpty == false ? title! : fallbackTitle
+        resolvedAccessibilityText(node.stringAttribute("title"), fallback: fallbackTitle)
+    }
+
+    private var actionLabel: String {
+        assetLoader != nil && source != nil ? "Download \(title)" : "Open \(title)"
+    }
+
+    private var actionHint: String {
+        if assetLoader != nil, source != nil {
+            return isLoading
+                ? "Downloading and opening this item."
+                : "Downloads and opens this item."
+        }
+        return "Opens this item."
+    }
+
+    private var accessibilityState: String {
+        if isLoading { return "Loading" }
+        return detail.map { "Ready, \($0)" } ?? "Ready"
     }
 
     private var card: some View {
         HStack(spacing: 10) {
             Image(systemName: icon).font(.title3).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline).lineLimit(2)
+                Text(title).font(.headline)
                 if let detail {
-                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 8)
             if isLoading {
                 ProgressView().controlSize(.small)
@@ -587,6 +648,7 @@ private struct DownloadableMediaBlock: View {
             }
         }
         .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
     }
@@ -633,6 +695,7 @@ private struct DownloadableMediaBlock: View {
             errorMessage = error.localizedDescription
         }
     }
+
     @MainActor
     private func removePreviewFile() {
         guard let previewURL else { return }
@@ -648,15 +711,39 @@ private struct LinkedMediaBlock: View {
     let baseURL: URL?
 
     var body: some View {
-        let title = node.stringAttribute("title") ?? (node.type == "video" ? "Video" : "Embedded content")
         Group {
-            if let url = resolvedSafeURL(node.stringAttribute(sourceKey), baseURL: baseURL) {
-                Link(destination: url) { card(title: title, detail: url.host ?? url.absoluteString) }
+            if let url {
+                Link(destination: url) {
+                    card(title: title, detail: detail)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Open \(title)")
+                .accessibilityValue("Ready, \(detail)")
+                .accessibilityHint("Opens this link.")
             } else {
                 card(title: title, detail: "Link unavailable")
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(title)
+                    .accessibilityValue("Unavailable")
+                    .accessibilityHint("This link is unavailable.")
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private var title: String {
+        resolvedAccessibilityText(
+            node.stringAttribute("title"),
+            fallback: node.type == "video" ? "Video" : "Embedded content"
+        )
+    }
+
+    private var url: URL? {
+        resolvedSafeURL(node.stringAttribute(sourceKey), baseURL: baseURL)
+    }
+
+    private var detail: String {
+        url?.host ?? url?.absoluteString ?? "Link unavailable"
     }
 
     private func card(title: String, detail: String) -> some View {
@@ -664,12 +751,14 @@ private struct LinkedMediaBlock: View {
             Image(systemName: icon).font(.title3).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 8)
             Image(systemName: "arrow.up.right").accessibilityHidden(true)
         }
         .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
     }
@@ -680,11 +769,17 @@ private struct MathBlock: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            Text(plainText(node)).font(.body.monospaced()).padding(12)
+            Text(plainText(node))
+                .font(.body.monospaced())
+                .padding(12)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Math expression")
+                .accessibilityValue(plainText(node))
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-        .accessibilityLabel("Math: \(plainText(node))")
+        .accessibilityElement(children: .contain)
+        .accessibilityHint("Swipe horizontally to view the full expression")
     }
 }
 
@@ -708,8 +803,10 @@ private struct ImageBlock: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel("View \(altText) full screen")
-                .accessibilityHint("Opens a full-screen viewer with zoom and pan controls")
+                .accessibilityHint("Opens \(altText) in a full-screen viewer with zoom and pan controls.")
                 .mediaViewerCover(isPresented: $isViewerPresented) {
                     ZoomableMediaViewer(accessibilityName: altText) {
                         image
@@ -726,23 +823,39 @@ private struct ImageBlock: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 120)
                     .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                    .accessibilityElement(children: .ignore)
                     .accessibilityLabel(altText)
+                    .accessibilityValue("Unavailable")
+                    .accessibilityAddTraits(.isImage)
+                    .accessibilityHint("This image is unavailable.")
             } else if let errorMessage {
                 VStack(spacing: 8) {
-                    Label(altText, systemImage: "photo").foregroundStyle(.secondary)
+                    Label(altText, systemImage: "photo")
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     Text(errorMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                        .accessibilityHidden(true)
                     Button("Try again") { request += 1 }
+                        .frame(minHeight: 44)
+                        .accessibilityLabel("Try loading \(altText) again")
+                        .accessibilityHint("Retries loading the image.")
                 }
                 .frame(maxWidth: .infinity, minHeight: 120)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-                .accessibilityLabel(altText)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("\(altText) failed to load")
+                .accessibilityValue(errorMessage)
+                .accessibilityHint("Select Try loading again to retry.")
             } else {
                 ProgressView("Loading image…")
                     .frame(maxWidth: .infinity, minHeight: 120)
-                    .accessibilityLabel(altText)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Loading \(altText)")
+                    .accessibilityValue("Loading")
+                    .accessibilityHint("Wait while the image loads.")
             }
         }
         .aspectRatio(aspectRatio, contentMode: .fit)
@@ -755,8 +868,7 @@ private struct ImageBlock: View {
     }
 
     private var altText: String {
-        let value = node.stringAttribute("alt")?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value?.isEmpty == false ? value! : "Image"
+        resolvedAccessibilityText(node.stringAttribute("alt"), fallback: "Image")
     }
 
     private var aspectRatio: CGFloat? {
@@ -872,6 +984,12 @@ func resolvedSafeURL(_ source: String?, baseURL: URL?) -> URL? {
           let scheme = url.scheme?.lowercased(),
           ["https", "mailto", "tel", "sms"].contains(scheme) else { return nil }
     return url
+}
+func resolvedAccessibilityText(_ value: String?, fallback: String) -> String {
+    guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+        return fallback
+    }
+    return value
 }
 
 func attachmentDetail(_ node: ProseMirrorNode) -> String? {

@@ -36,6 +36,7 @@ struct ZoomableMediaViewer<Content: View, Background: View>: View {
                     .ignoresSafeArea()
                     .overlay {
                         background
+                            .accessibilityHidden(true)
                             .frame(
                                 width: geometry.size.width + geometry.safeAreaInsets.leading + geometry.safeAreaInsets.trailing,
                                 height: geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
@@ -53,8 +54,14 @@ struct ZoomableMediaViewer<Content: View, Background: View>: View {
                     .scaleEffect(displayedScale)
                     .offset(displayedOffset)
                     .contentShape(Rectangle())
+                    .accessibilityElement(children: .ignore)
                     .accessibilityLabel(accessibilityName)
-                    .accessibilityHint("Use the zoom controls to enlarge the content")
+                    .accessibilityAddTraits(.isImage)
+                    .accessibilityValue("\(Int(displayedScale.rounded()))× zoom")
+                    .accessibilityHint("Use the zoom controls, pinch to zoom, or drag when zoomed.")
+                    .accessibilityAction(named: Text("Toggle zoom")) {
+                        setScale(scale > 1 ? 1 : 2, in: geometry.size)
+                    }
                     .gesture(magnificationGesture(in: geometry.size))
                     .simultaneousGesture(panGesture(in: geometry.size))
                     .onTapGesture(count: 2) {
@@ -64,26 +71,45 @@ struct ZoomableMediaViewer<Content: View, Background: View>: View {
                 VStack {
                     HStack {
                         Spacer()
-                        controlButton("xmark", label: "Close viewer") { dismiss() }
+                        controlButton(
+                            "xmark",
+                            label: "Close viewer",
+                            hint: "Dismisses the full-screen viewer."
+                        ) { dismiss() }
                     }
 
                     Spacer()
 
                     HStack(spacing: 8) {
-                        controlButton("minus.magnifyingglass", label: "Zoom out") {
+                        controlButton(
+                            "minus.magnifyingglass",
+                            label: "Zoom out",
+                            hint: "Decreases the zoom level."
+                        ) {
                             setScale(scale - 1, in: geometry.size)
                         }
                         .disabled(scale <= 1)
+                        .accessibilityValue("\(Int(displayedScale.rounded()))× zoom")
 
-                        controlButton("arrow.counterclockwise", label: "Reset zoom") {
+                        controlButton(
+                            "arrow.counterclockwise",
+                            label: "Reset zoom",
+                            hint: "Returns the image to its original size and position."
+                        ) {
                             setScale(1, in: geometry.size)
                         }
                         .disabled(scale == 1 && offset == .zero)
+                        .accessibilityValue("\(Int(displayedScale.rounded()))× zoom")
 
-                        controlButton("plus.magnifyingglass", label: "Zoom in") {
+                        controlButton(
+                            "plus.magnifyingglass",
+                            label: "Zoom in",
+                            hint: "Increases the zoom level."
+                        ) {
                             setScale(scale + 1, in: geometry.size)
                         }
                         .disabled(scale >= 8)
+                        .accessibilityValue("\(Int(displayedScale.rounded()))× zoom")
                     }
                 }
                 .padding()
@@ -134,6 +160,7 @@ struct ZoomableMediaViewer<Content: View, Background: View>: View {
     private func controlButton(
         _ systemName: String,
         label: String,
+        hint: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -144,7 +171,9 @@ struct ZoomableMediaViewer<Content: View, Background: View>: View {
         .buttonStyle(.plain)
         .foregroundStyle(.white)
         .background(.thinMaterial, in: Circle())
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
+        .accessibilityHint(hint)
     }
 }
 

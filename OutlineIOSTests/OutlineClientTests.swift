@@ -5,6 +5,34 @@ import Testing
 
 @Suite(.serialized)
 struct OutlineClientTests {
+
+    @Test
+    func classifiesRecoverableSessionErrors() {
+        #expect(
+            SessionErrorRecovery(error: OutlineClientError.httpFailure(statusCode: 401))
+                == .reconnect
+        )
+        #expect(
+            SessionErrorRecovery(error: OutlineClientError.httpFailure(statusCode: 403))
+                == .reconnect
+        )
+        #expect(
+            SessionErrorRecovery(error: OutlineClientError.missingPermission("attachments.redirect"))
+                == .reconnect
+        )
+        #expect(
+            SessionErrorRecovery(error: OutlineClientError.requestFailed)
+                == .retry
+        )
+        #expect(
+            SessionErrorRecovery(error: OutlineClientError.decodingFailed)
+                == .retry
+        )
+        #expect(
+            SessionErrorRecovery(error: OutlineClientError.httpFailure(statusCode: 500))
+                == .retry
+        )
+    }
     @Test
     func buildsSelfHostedPathAndRequiredRequest() async throws {
         let capture = RequestCapture()

@@ -7,6 +7,7 @@ struct ContentView: View {
         NavigationStack {
             ConnectionView(store: store)
         }
+        .id(store.isConnected)
         .task {
             await store.restore()
         }
