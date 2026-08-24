@@ -787,13 +787,20 @@ private struct ImageBlock: View {
     let node: ProseMirrorNode
     let assetLoader: ProseMirrorAssetLoader?
     @State private var image: Image?
+    @State private var svgData: Data?
     @State private var errorMessage: String?
     @State private var request = 0
     @State private var isViewerPresented = false
 
     var body: some View {
         Group {
-            if let image {
+            if let svgData {
+                SVGImageView(data: svgData)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(altText)
+                    .accessibilityAddTraits(.isImage)
+            } else if let image {
                 Button {
                     isViewerPresented = true
                 } label: {
@@ -884,10 +891,16 @@ private struct ImageBlock: View {
         errorMessage = nil
         do {
             let loadedData = try await assetLoader(source)
+            if isSVGImageData(loadedData) {
+                svgData = loadedData
+                image = nil
+                return
+            }
             guard let loadedImage = try await platformImage(data: loadedData) else {
                 errorMessage = "The image format is not supported."
                 return
             }
+            svgData = nil
             image = loadedImage
         } catch is CancellationError {
             return

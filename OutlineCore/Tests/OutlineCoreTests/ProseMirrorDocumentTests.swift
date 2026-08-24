@@ -30,6 +30,13 @@ func decodesTolerantDocumentTreeAndUnknownAttributes() throws {
 }
 
 @Test
+func recognizesSVGImageData() {
+    #expect(isSVGImageData(Data(#"<?xml version="1.0"?><svg viewBox="0 0 10 10"></svg>"#.utf8)))
+    #expect(isSVGImageData(Data("<SVG></SVG>".utf8)))
+    #expect(!isSVGImageData(Data("not an image".utf8)))
+}
+
+@Test
 func inlineAtomsHaveReadableFallbacks() {
     let image = ProseMirrorNode(type: "image", attrs: ["alt": .string("Architecture")])
     let mention = ProseMirrorNode(
