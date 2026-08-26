@@ -30,10 +30,13 @@ func decodesTolerantDocumentTreeAndUnknownAttributes() throws {
 }
 
 @Test
-func recognizesSVGImageData() {
-    #expect(isSVGImageData(Data(#"<?xml version="1.0"?><svg viewBox="0 0 10 10"></svg>"#.utf8)))
-    #expect(isSVGImageData(Data("<SVG></SVG>".utf8)))
-    #expect(!isSVGImageData(Data("not an image".utf8)))
+func parsesSVGMetadataAcrossEncodings() throws {
+    let longPreamble = "<!--\(String(repeating: "x", count: 5_000))--><svg viewBox=\"0 0 20 10\"></svg>"
+    let utf16 = try #require("<svg></svg>".data(using: .utf16))
+
+    #expect(svgImageMetadata(Data(longPreamble.utf8))?.aspectRatio == 2)
+    #expect(svgImageMetadata(utf16) != nil)
+    #expect(svgImageMetadata(Data("not an image".utf8)) == nil)
 }
 
 @Test

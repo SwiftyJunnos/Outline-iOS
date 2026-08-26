@@ -2,9 +2,47 @@ import Foundation
 import SwiftUI
 import WebKit
 
-func isSVGImageData(_ data: Data) -> Bool {
-    String(decoding: data.prefix(4_096), as: UTF8.self)
-        .range(of: #"<svg(?:\s|>)"#, options: [.regularExpression, .caseInsensitive]) != nil
+struct SVGImageMetadata: Equatable {
+    let aspectRatio: CGFloat?
+}
+
+func svgImageMetadata(_ data: Data) -> SVGImageMetadata? {
+    let delegate = SVGMetadataParser()
+    let parser = XMLParser(data: data)
+    parser.delegate = delegate
+    parser.shouldProcessNamespaces = true
+    parser.shouldResolveExternalEntities = false
+    _ = parser.parse()
+    return delegate.metadata
+}
+
+private final class SVGMetadataParser: NSObject, XMLParserDelegate {
+    private(set) var metadata: SVGImageMetadata?
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?,
+        attributes attributeDict: [String: String]
+    ) {
+        defer { parser.abortParsing() }
+        guard elementName.caseInsensitiveCompare("svg") == .orderedSame else { return }
+        metadata = SVGImageMetadata(aspectRatio: Self.aspectRatio(from: attributeDict["viewBox"]))
+    }
+
+    private static func aspectRatio(from viewBox: String?) -> CGFloat? {
+        guard let values = viewBox?
+            .split(whereSeparator: { $0 == "," || $0.isWhitespace })
+            .compactMap({ Double($0) }),
+            values.count == 4,
+            values[2] > 0,
+            values[3] > 0
+        else {
+            return nil
+        }
+        return values[2] / values[3]
+    }
 }
 
 @MainActor
@@ -24,6 +62,8 @@ struct SVGImageView {
         webView.scrollView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
+        #elseif os(macOS)
+        webView.setValue(false, forKey: "drawsBackground")
         #endif
         return webView
     }

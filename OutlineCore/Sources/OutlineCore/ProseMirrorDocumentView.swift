@@ -788,6 +788,7 @@ private struct ImageBlock: View {
     let assetLoader: ProseMirrorAssetLoader?
     @State private var image: Image?
     @State private var svgData: Data?
+    @State private var svgAspectRatio: CGFloat?
     @State private var errorMessage: String?
     @State private var request = 0
     @State private var isViewerPresented = false
@@ -880,7 +881,7 @@ private struct ImageBlock: View {
 
     private var aspectRatio: CGFloat? {
         guard let width = node.doubleAttribute("width"), let height = node.doubleAttribute("height"), height > 0 else {
-            return nil
+            return svgAspectRatio
         }
         return width / height
     }
@@ -891,8 +892,9 @@ private struct ImageBlock: View {
         errorMessage = nil
         do {
             let loadedData = try await assetLoader(source)
-            if isSVGImageData(loadedData) {
+            if let metadata = svgImageMetadata(loadedData) {
                 svgData = loadedData
+                svgAspectRatio = metadata.aspectRatio
                 image = nil
                 return
             }
@@ -901,6 +903,7 @@ private struct ImageBlock: View {
                 return
             }
             svgData = nil
+            svgAspectRatio = nil
             image = loadedImage
         } catch is CancellationError {
             return
