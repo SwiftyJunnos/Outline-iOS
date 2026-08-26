@@ -795,19 +795,12 @@ private struct ImageBlock: View {
 
     var body: some View {
         Group {
-            if let svgData {
-                SVGImageView(data: svgData)
-                    .frame(maxWidth: .infinity, minHeight: 120)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(altText)
-                    .accessibilityAddTraits(.isImage)
-            } else if let image {
+            if svgData != nil || image != nil {
                 Button {
                     isViewerPresented = true
                 } label: {
-                    image
-                        .resizable()
-                        .scaledToFit()
+                    loadedMedia
+                        .frame(maxWidth: .infinity, minHeight: 120)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -817,13 +810,17 @@ private struct ImageBlock: View {
                 .accessibilityHint("Opens \(altText) in a full-screen viewer with zoom and pan controls.")
                 .mediaViewerCover(isPresented: $isViewerPresented) {
                     ZoomableMediaViewer(accessibilityName: altText) {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .blur(radius: 32)
-                            .overlay(.black.opacity(0.2))
+                        if let image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .blur(radius: 32)
+                                .overlay(.black.opacity(0.2))
+                        } else {
+                            Color.black
+                        }
                     } content: {
-                        image.resizable().scaledToFit()
+                        loadedMedia
                     }
                 }
             } else if assetLoader == nil || source == nil {
@@ -868,6 +865,16 @@ private struct ImageBlock: View {
         }
         .aspectRatio(aspectRatio, contentMode: .fit)
         .task(id: request) { await load() }
+    }
+
+    @ViewBuilder
+    private var loadedMedia: some View {
+        if let svgData {
+            SVGImageView(data: svgData)
+                .allowsHitTesting(false)
+        } else if let image {
+            image.resizable().scaledToFit()
+        }
     }
 
     private var source: String? {
