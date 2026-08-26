@@ -30,6 +30,20 @@ func decodesTolerantDocumentTreeAndUnknownAttributes() throws {
 }
 
 @Test
+func parsesSVGMetadataAcrossEncodings() throws {
+    let longPreamble = "<!--\(String(repeating: "x", count: 5_000))--><svg viewBox=\"0 0 20 10\"></svg>"
+    let utf16 = try #require("<svg></svg>".data(using: .utf16))
+
+    #expect(svgImageMetadata(Data(longPreamble.utf8))?.aspectRatio == 2)
+    #expect(svgImageMetadata(Data(#"<svg viewBox="0 0 30 10" width="10" height="10"></svg>"#.utf8))?.aspectRatio == 3)
+    #expect(svgImageMetadata(Data(#"<svg width="200" height="100px"></svg>"#.utf8))?.aspectRatio == 2)
+    #expect(svgImageMetadata(Data(#"<svg width="20cm" height="10px"></svg>"#.utf8))?.aspectRatio == nil)
+    #expect(svgImageMetadata(utf16) != nil)
+    #expect(svgImageMetadata(Data("not an image".utf8)) == nil)
+    #expect(svgImageMetadata(Data("<svg><path>".utf8)) == nil)
+}
+
+@Test
 func inlineAtomsHaveReadableFallbacks() {
     let image = ProseMirrorNode(type: "image", attrs: ["alt": .string("Architecture")])
     let mention = ProseMirrorNode(
