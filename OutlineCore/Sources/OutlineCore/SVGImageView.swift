@@ -30,20 +30,43 @@ private final class SVGMetadataParser: NSObject, XMLParserDelegate {
         guard !foundRoot else { return }
         foundRoot = true
         guard elementName.caseInsensitiveCompare("svg") == .orderedSame else { return }
-        metadata = SVGImageMetadata(aspectRatio: Self.aspectRatio(from: attributeDict["viewBox"]))
+        metadata = SVGImageMetadata(aspectRatio: Self.aspectRatio(from: attributeDict))
     }
 
-    private static func aspectRatio(from viewBox: String?) -> CGFloat? {
-        guard let values = viewBox?
+    private static func aspectRatio(from attributes: [String: String]) -> CGFloat? {
+        if let values = attributes["viewBox"]?
             .split(whereSeparator: { $0 == "," || $0.isWhitespace })
             .compactMap({ Double($0) }),
             values.count == 4,
             values[2] > 0,
-            values[3] > 0
+            values[3] > 0 {
+            return values[2] / values[3]
+        }
+
+        guard
+            let width = length(attributes["width"]),
+            let height = length(attributes["height"]),
+            width.unit == height.unit,
+            width.value > 0,
+            height.value > 0
         else {
             return nil
         }
-        return values[2] / values[3]
+        return width.value / height.value
+    }
+
+    private static func length(_ source: String?) -> (value: Double, unit: String)? {
+        guard let source else { return nil }
+        let scanner = Scanner(string: source)
+        guard let value = scanner.scanDouble() else { return nil }
+        let unit = source[scanner.currentIndex...]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let normalizedUnit = unit.isEmpty ? "px" : unit
+        guard ["px", "pt", "pc", "mm", "cm", "in", "em", "ex", "ch", "rem"].contains(normalizedUnit) else {
+            return nil
+        }
+        return (value, normalizedUnit)
     }
 }
 
