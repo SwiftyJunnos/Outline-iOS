@@ -37,6 +37,7 @@ func parsesSVGMetadataAcrossEncodings() throws {
     #expect(svgImageMetadata(Data(longPreamble.utf8))?.aspectRatio == 2)
     #expect(svgImageMetadata(utf16) != nil)
     #expect(svgImageMetadata(Data("not an image".utf8)) == nil)
+    #expect(svgImageMetadata(Data("<svg><path>".utf8)) == nil)
 }
 
 @Test

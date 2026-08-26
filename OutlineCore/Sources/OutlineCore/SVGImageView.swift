@@ -12,12 +12,13 @@ func svgImageMetadata(_ data: Data) -> SVGImageMetadata? {
     parser.delegate = delegate
     parser.shouldProcessNamespaces = true
     parser.shouldResolveExternalEntities = false
-    _ = parser.parse()
+    guard parser.parse() else { return nil }
     return delegate.metadata
 }
 
 private final class SVGMetadataParser: NSObject, XMLParserDelegate {
     private(set) var metadata: SVGImageMetadata?
+    private var foundRoot = false
 
     func parser(
         _ parser: XMLParser,
@@ -26,7 +27,8 @@ private final class SVGMetadataParser: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes attributeDict: [String: String]
     ) {
-        defer { parser.abortParsing() }
+        guard !foundRoot else { return }
+        foundRoot = true
         guard elementName.caseInsensitiveCompare("svg") == .orderedSame else { return }
         metadata = SVGImageMetadata(aspectRatio: Self.aspectRatio(from: attributeDict["viewBox"]))
     }
